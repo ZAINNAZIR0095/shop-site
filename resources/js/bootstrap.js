@@ -1,0 +1,17 @@
+// resources/js/bootstrap.js
+import axios from 'axios';
+window.axios = axios;
+
+window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+
+// Get CSRF token from meta tag
+const token = document.head.querySelector('meta[name="csrf-token"]');
+if (token) {
+    window.axios.defaults.headers.common['X-CSRF-TOKEN'] = token.content;
+} else {
+    console.error('CSRF token not found');
+}
+
+// For API routes
+window.axios.defaults.headers.common['Accept'] = 'application/json';
+window.axios.defaults.baseURL = '/api';
