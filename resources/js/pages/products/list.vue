@@ -71,9 +71,9 @@
                                     {{ product.min_limit }}
                                 </CBadge>
                             </CTableDataCell>
-                            <CTableDataCell>₹{{ product.purchase_price }}</CTableDataCell>
+                            <CTableDataCell>{{ product.purchase_price }}</CTableDataCell>
                             <CTableDataCell>
-                                <strong>₹{{ product.sale_price }}</strong>
+                                <strong>{{ product.sale_price }}</strong>
                             </CTableDataCell>
                             <CTableDataCell>
                                 <CButtonGroup>

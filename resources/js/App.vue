@@ -6,7 +6,6 @@
                 <CSidebarBrand>IMS-SZB</CSidebarBrand>
             </CSidebarHeader>
             <CSidebarNav>
-                <CNavTitle>Navigation</CNavTitle>
 
                 <!-- Dashboard Link -->
                 <CNavItem>
@@ -21,6 +20,20 @@
                     <router-link to="/products-list" class="nav-link">
                         <CIcon custom-class-name="nav-icon" :name="cilSpeedometer" />
                         Products
+                    </router-link>
+                </CNavItem>
+                <!-- Products Link -->
+                <CNavItem>
+                    <router-link to="/stocks-list" class="nav-link">
+                        <CIcon custom-class-name="nav-icon" :name="cilSpeedometer" />
+                        Stock List
+                    </router-link>
+                </CNavItem>
+                <!-- Products Link -->
+                <CNavItem>
+                    <router-link to="/stocks-report" class="nav-link">
+                        <CIcon custom-class-name="nav-icon" :name="cilSpeedometer" />
+                        Stock report
                     </router-link>
                 </CNavItem>
 
