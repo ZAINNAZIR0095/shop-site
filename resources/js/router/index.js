@@ -1,4 +1,9 @@
-import { createRouter , createWebHistory } from "vue-router";
+import { createRouter, createWebHistory } from "vue-router";
+
+// Layouts
+import DefaultLayout from "../layouts/DefaultLayout.vue";
+import AuthLayout from "../layouts/AuthLayout.vue";
+// Pages
 import dashboard from "../pages/dashboard.vue";
 import list from "../pages/products/list.vue";
 import create from "../pages/products/create.vue";
@@ -8,54 +13,122 @@ import createstock from "../pages/stocks/create.vue";
 import Edit from "../pages/stocks/edit.vue";
 import Show from "../pages/stocks/show.vue";
 import Index from "../pages/reports/index.vue";
+import transactionReport from "../pages/reports/transaction-report.vue";
+import login from "../pages/auth/login.vue";
 
+import { useAuthStore } from "../stores/authStore";
 
 const routes = [
-    {path: '/' , name:'dashboard' ,  component : dashboard},
-    {path: '/products-list' , name:'products' ,  component : list},
+  // Auth Routes
   {
-    path: '/products-create',
-    name: 'products.create',
-    component: create
+    path: "/login",
+    component: AuthLayout,
+    meta: { requiresGuest: true },
+    children: [
+      {
+        path: "",
+        name: "login",
+        component: login,
+      },
+    ],
   },
+
+  // Protected Routes with Default Layout (Sidebar + Navbar)
   {
-    path: '/products/:id/edit',
-    name: 'products.edit',
-    component: edit,
-    props: true
+    path: "/",
+    component: DefaultLayout,
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: "",
+        name: "dashboard",
+        component: dashboard,
+      },
+      {
+        path: "products-list",
+        name: "products",
+        component: list,
+      },
+      {
+        path: "products-create",
+        name: "products.create",
+        component: create,
+      },
+      {
+        path: "products/:id/edit",
+        name: "products.edit",
+        component: edit,
+        props: true,
+      },
+      {
+        path: "stocks-list",
+        name: "stocks",
+        component: List,
+      },
+      {
+        path: "stocks-create",
+        name: "stocks.create",
+        component: createstock,
+      },
+      {
+        path: "stocks/:id/edit",
+        name: "stocks.edit",
+        component: Edit,
+        props: true,
+      },
+      {
+        path: "stocks-show/:id",
+        name: "stocks.show",
+        component: Show,
+        props: true,
+      },
+      {
+        path: "stocks-report",
+        name: "stocks.report",
+        component: Index,
+      },
+      {
+        path: "transaction-report",
+        name: "stocks.transaction",
+        component: transactionReport,
+      },
+    ],
   },
+
+  // Fallback
   {
-    path: '/stocks-list',
-    name: 'stocks',
-    component: List,
-    props: true
+    path: "/:pathMatch(.*)*",
+    redirect: "/",
   },
-  {
-    path: '/stocks-create',
-    name: 'stocks.create',
-    component: createstock,
-    props: true
-  },
-  {
-    path: '/stocks/:id/edit',
-    name: 'stocks.edit',
-    component: () => Edit,
-},
-{
-    path: '/stocks-show/:id',
-    name: 'stocks.show',
-    component: Show,
-},
-{
-    path: '/stocks-report',
-    name: 'stocks.report',
-    component: Index,
-},
-]
+];
 
 const router = createRouter({
-    history: createWebHistory(),
-    routes,
-})
+  history: createWebHistory(),
+  routes,
+});
 
-export default router
+// Navigation Guard
+router.beforeEach(async (to, from, next) => {
+  const authStore = useAuthStore();
+
+  // Routes requiring authentication
+  if (to.matched.some((record) => record.meta.requiresAuth)) {
+    if (!authStore.isAuthenticated) {
+      const isAuthenticated = await authStore.checkAuth();
+      if (!isAuthenticated) {
+        return next("/login");
+      }
+    }
+  }
+
+  // Routes requiring guest (not logged in)
+  if (to.matched.some((record) => record.meta.requiresGuest)) {
+    if (authStore.isAuthenticated) {
+      return next("/");
+    }
+  }
+
+  next();
+});
+
+export default router;

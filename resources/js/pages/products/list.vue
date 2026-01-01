@@ -1,9 +1,5 @@
 <template>
     <div class="mx-2 w-full">
-        <CBreadcrumb class="my-3">
-            <CBreadcrumbItem active>Products</CBreadcrumbItem>
-        </CBreadcrumb>
-
         <CCard>
             <CCardHeader class="d-flex justify-content-between align-items-center">
                 <strong>Products List</strong>
@@ -158,7 +154,6 @@ import {
     CButton, CButtonGroup, CSpinner,
     CInputGroup, CFormInput, CInputGroupText, CFormSelect,
     CBadge, CPagination, CPaginationItem,
-    CBreadcrumb, CBreadcrumbItem,
     CModal, CModalHeader, CModalTitle, CModalBody, CModalFooter
 } from '@coreui/vue'
 

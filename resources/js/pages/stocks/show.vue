@@ -1,12 +1,5 @@
 <template>
     <div>
-        <!-- Breadcrumb -->
-        <CBreadcrumb class="my-3">
-            <CBreadcrumbItem :to="{ name: 'home' }">Dashboard</CBreadcrumbItem>
-            <CBreadcrumbItem :to="{ name: 'stocks' }">Stocks</CBreadcrumbItem>
-            <CBreadcrumbItem active>Stock Details</CBreadcrumbItem>
-        </CBreadcrumb>
-
         <!-- Loading State -->
         <div v-if="loading" class="text-center py-5">
             <CSpinner color="primary" />
@@ -233,7 +226,6 @@ import {
     CButton, CSpinner,
     CRow, CCol,
     CTable, CTableHead, CTableBody, CTableFoot, CTableRow, CTableHeaderCell, CTableDataCell,
-    CBreadcrumb, CBreadcrumbItem,
     CModal, CModalHeader, CModalTitle, CModalBody, CModalFooter,
 } from '@coreui/vue'
 
@@ -268,7 +260,7 @@ console.log(response)
         } else {
             error.value = response.data.message || 'Failed to load stock details'
         }
-    } catch (err) { 
+    } catch (err) {
         console.error('Error fetching stock:', err)
         if (err.response?.status === 404) {
             error.value = 'Stock entry not found.'

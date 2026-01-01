@@ -1,12 +1,6 @@
 <!-- resources/js/views/products/CreateProduct.vue -->
 <template>
   <div>
-    <!-- Breadcrumb -->
-    <CBreadcrumb class="my-3">
-      <CBreadcrumbItem :to="{ name: 'products' }">Products</CBreadcrumbItem>
-      <CBreadcrumbItem active>Create Product</CBreadcrumbItem>
-    </CBreadcrumb>
-
     <!-- Form Card -->
     <CCard>
       <CCardHeader>
@@ -201,7 +195,6 @@ import {
   CForm, CFormLabel, CFormInput, CFormSelect, CFormText, CFormFeedback,
   CButton, CSpinner,
   CInputGroup, CInputGroupText,
-  CBreadcrumb, CBreadcrumbItem,
   CModal, CModalHeader, CModalTitle, CModalBody, CModalFooter,
 } from '@coreui/vue'
 

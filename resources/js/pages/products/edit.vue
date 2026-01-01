@@ -1,12 +1,6 @@
 <!-- resources/js/views/products/EditProduct.vue -->
 <template>
   <div>
-    <!-- Breadcrumb -->
-    <CBreadcrumb class="my-3">
-      <CBreadcrumbItem :to="{ name: 'products' }">Products</CBreadcrumbItem>
-      <CBreadcrumbItem active>Edit Product</CBreadcrumbItem>
-    </CBreadcrumb>
-
     <!-- Loading State -->
     <div v-if="loading" class="text-center py-5">
       <CSpinner />
@@ -217,7 +211,6 @@ import {
   CForm, CFormLabel, CFormInput, CFormSelect, CFormText, CFormFeedback,
   CButton, CSpinner,
   CInputGroup, CInputGroupText,
-  CBreadcrumb, CBreadcrumbItem,
   CModal, CModalHeader, CModalTitle, CModalBody, CModalFooter
 } from '@coreui/vue'
 

@@ -9,3 +9,15 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+/* Override CoreUI focus styles */
+.form-control:focus,
+.form-select:focus,
+.btn:focus {
+  box-shadow: 3px !important;
+  border-color: #8b5cf6;
+}
+
+:focus-visible {
+  outline: 3px solid #8b5cf6;
+  outline-offset: 3px;
+}

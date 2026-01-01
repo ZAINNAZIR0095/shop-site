@@ -3,10 +3,7 @@
         <!-- Form Card -->
         <CCard>
             <CCardHeader>
-                <strong>Edit Stock Entry</strong>
-                <span class="float-end text-muted">
-                    Reference: #{{ stock?.reference_no || 'Loading...' }}
-                </span>
+                <strong>Create New Stock Entry</strong>
             </CCardHeader>
             <CCardBody>
                 <CForm @submit.prevent="submitForm">
@@ -157,14 +154,13 @@
                                         </CTableDataCell>
 
                                         <!-- Unit Price -->
-                                        <CTableDataCell>
-                                            <CInputGroup>
-                                                <CInputGroupText>PKR</CInputGroupText>
-                                                <CFormInput :value="getUnitPrice(item.product_id)"
-                                                    type="number" step="0.01" min="0" readonly />
-                                            </CInputGroup>
-                                        </CTableDataCell>
-
+          <CTableDataCell>
+    <CInputGroup>
+        <CInputGroupText>PKR</CInputGroupText>
+        <CFormInput :value="getUnitPrice(item.product_id)"
+            type="number" step="0.01" min="0" readonly />
+    </CInputGroup>
+</CTableDataCell>
                                         <!-- Total -->
                                         <CTableDataCell>
                                             <strong class="text-primary">
@@ -202,16 +198,16 @@
                     <!-- Form Actions -->
                     <div class="d-flex justify-content-between mt-4">
                         <CButton color="secondary" @click="goBack">
-                            <CIcon name="cil-arrow-left" /> Cancel
+                            <CIcon name="cil-arrow-left" /> Back
                         </CButton>
                         <div>
-                            <CButton color="warning" class="me-2" @click="resetToOriginal" type="button">
+                            <CButton color="light" class="me-2" @click="resetForm" type="button">
                                 <CIcon name="cil-reload" /> Reset
                             </CButton>
                             <CButton type="submit" color="primary" :disabled="submitting">
                                 <CSpinner v-if="submitting" component="span" size="sm" class="me-2" />
                                 <CIcon v-else name="cil-save" class="me-2" />
-                                {{ submitting ? 'Updating...' : 'Update Stock Entry' }}
+                                {{ submitting ? 'Saving...' : 'Save Stock Entry' }}
                             </CButton>
                         </div>
                     </div>
@@ -227,59 +223,54 @@
             <CModalBody>
                 <div class="text-center py-4">
                     <CIcon name="cil-check-circle" size="3xl" class="text-success mb-3" />
-                    <h5>Stock Entry Updated Successfully!</h5>
+                    <h5>Stock Entry Created Successfully!</h5>
                     <p class="mb-0">{{ successMessage }}</p>
                     <div class="mt-3">
-                        <p><strong>Reference:</strong> {{ updatedStock?.reference_no || 'N/A' }}</p>
-                        <p><strong>Type:</strong> {{ formatStockType(updatedStock?.stock_type) }}</p>
-                        <p><strong>Total Amount:</strong> PKR {{ formatCurrency(updatedStock?.net_price) }}</p>
+                        <p><strong>Reference:</strong> {{ createdStock?.reference_no || 'N/A' }}</p>
+                        <p><strong>Type:</strong> {{ formatStockType(createdStock?.stock_type) }}</p>
+                        <p><strong>Total Amount:</strong> PKR {{ formatCurrency(createdStock?.net_price) }}</p>
                     </div>
                 </div>
             </CModalBody>
             <CModalFooter>
                 <CButton color="primary" @click="viewStock">View Details</CButton>
-                <CButton color="secondary" @click="handleModalClose">Close</CButton>
+                <CButton color="secondary" @click="createAnother">Create Another</CButton>
             </CModalFooter>
         </CModal>
     </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
 
 // CoreUI Components
 import {
     CCard, CCardHeader, CCardBody,
     CForm, CFormLabel, CFormInput, CFormSelect, CFormCheck, CFormFeedback,
-    CButton, CSpinner,
+    CButton, CSpinner, CButtonGroup,
     CRow, CCol,
     CInputGroup, CInputGroupText,
     CTable, CTableHead, CTableBody, CTableFoot, CTableRow, CTableHeaderCell, CTableDataCell,
     CModal, CModalHeader, CModalTitle, CModalBody, CModalFooter,
 } from '@coreui/vue'
 
+
 const router = useRouter()
-const route = useRoute()
 
 // State
-const stock = ref(null)
 const availableProducts = ref([])
 const submitting = ref(false)
-const loading = ref(true)
 const showSuccessModal = ref(false)
 const successMessage = ref('')
-const updatedStock = ref(null)
+const createdStock = ref(null)
 const errors = ref({})
-
-// Store original data for reset
-const originalFormData = ref(null)
 
 // Form data
 const form = reactive({
     stock_type: 'purchase',
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toISOString().split('T')[0], // Today's date
     description: '',
     party_name: '',
     party_phone: '',
@@ -289,66 +280,31 @@ const form = reactive({
 
 // Computed properties
 const totalAmount = computed(() => {
-    return form.items.reduce((sum, item) => sum + (item.total || 0), 0)
+    return form.items.reduce((sum, item, index) => {
+        const quantity = parseFloat(item.quantity) || 0
+        const unitPrice = getUnitPrice(item.product_id)
+        return sum + (quantity * unitPrice)
+    }, 0)
 })
 
+
 // Methods
-const fetchStock = async () => {
-    try {
-        loading.value = true
-        const response = await axios.get(`/stocks/${route.params.id}`)
-        console.log(response.data)
-        if (response.data.success) {
-            stock.value = response.data.data
-
-            console.log(stock.value.date)
-            // Populate form
-            form.stock_type = stock.value.stock_type
-            form.date = stock.value.date
-            form.description = stock.value.description || ''
-            form.party_name = stock.value.party_name || ''
-            form.party_phone = stock.value.party_phone || ''
-            form.party_address = stock.value.party_address || ''
-
-            // Populate items
-            form.items = stock.value.items.map(item => ({
-                product_id: item.product_id,
-                quantity: item.quantity,
-                total: item.total_price || 0
-            }))
-
-            // Store original data for reset
-            originalFormData.value = JSON.parse(JSON.stringify(form))
-        }
-    } catch (error) {
-        console.error('Error fetching stock:', error)
-        alert('Failed to load stock entry. Please try again.')
-        router.push({ name: 'stocks' })
-    } finally {
-        loading.value = false
-    }
-}
-
 const fetchProducts = async () => {
     try {
         const response = await axios.get('/products')
+        console.log('product data', response.data.data)
         availableProducts.value = response.data.data
     } catch (error) {
         console.error('Error fetching products:', error)
     }
 }
 
-const getUnitPrice = (productId) => {
-    if (!productId) return 0
-    const product = availableProducts.value.find(p => p.id == productId)
-    if (!product) return 0
-    return form.stock_type === 'sale'
-        ? parseFloat(product.sale_price) || 0
-        : parseFloat(product.purchase_price) || 0
-}
-
 const handleStockTypeChange = () => {
-    // Update unit prices for all items
+    form.party_name = ''
+    form.party_phone = ''
+    form.party_address = ''
+
+    // Recalculate totals for all items
     form.items.forEach((item, index) => {
         if (item.product_id) {
             updateItemTotal(index)
@@ -367,15 +323,38 @@ const addProduct = () => {
 const removeProduct = (index) => {
     form.items.splice(index, 1)
 }
+const getUnitPrice = (productId) => {
+    if (!productId) return 0
+    const product = availableProducts.value.find(p => p.id == productId)
+    if (!product) return 0
+    console.log(product.sale_price)
+    return form.stock_type === 'sale'
+        ? parseFloat(product.sale_price) || 0
+        : parseFloat(product.purchase_price) || 0
+}
 
 const handleProductChange = (index) => {
+    // Just update the total when product changes
     updateItemTotal(index)
 }
+
+
+    const product = availableProducts.value.find(p => p.id == productId)
+    if (product) {
+        // Set unit price based on stock type
+        form.items[index].sale_price = form.stock_type === 'sale'
+            ? product.sale_price
+            : product.purchase_price
+
+        // Update total
+        updateItemTotal(index)
+    }
+
 
 const updateItemTotal = (index) => {
     const item = form.items[index]
     const quantity = parseFloat(item.quantity) || 0
-    const unitPrice = getUnitPrice(item.product_id)
+    const unitPrice = getUnitPrice(item.product_id)  // Use the function
     item.total = quantity * unitPrice
 }
 
@@ -387,7 +366,7 @@ const isProductSelected = (productId, currentIndex) => {
 
 const getProductStock = (productId) => {
     const product = availableProducts.value.find(p => p.id == productId)
-    return 0 // You might want to fetch actual stock from API
+    return 0
 }
 
 const getProductUnit = (productId) => {
@@ -415,6 +394,7 @@ const clearError = (field) => {
         delete errors.value[field]
     }
 
+    // Clear nested errors
     if (field.includes('items')) {
         const baseField = field.split('.')[0]
         if (errors.value[baseField]) {
@@ -423,10 +403,15 @@ const clearError = (field) => {
     }
 }
 
-const resetToOriginal = () => {
-    if (originalFormData.value) {
-        Object.assign(form, JSON.parse(JSON.stringify(originalFormData.value)))
-    }
+const resetForm = () => {
+    form.stock_type = 'purchase'
+    form.date = new Date().toISOString().split('T')[0]
+    form.description = ''
+    form.party_name = ''
+    form.party_phone = ''
+    form.party_address = ''
+    form.items = []
+    errors.value = {}
 }
 
 const formatStockType = (type) => {
@@ -475,20 +460,18 @@ const submitForm = async () => {
     }
 
     try {
-        const response = await axios.put(`/stocks/${route.params.id}`, submitData)
+        const response = await axios.post('/stocks', submitData)
 
         if (response.data.success) {
-            updatedStock.value = response.data.data
-            successMessage.value = `${formatStockType(form.stock_type)} updated successfully!`
+            createdStock.value = response.data.data
+            successMessage.value = `${formatStockType(form.stock_type)} created successfully!`
             showSuccessModal.value = true
-
-            // Update original data
-            originalFormData.value = JSON.parse(JSON.stringify(form))
         }
     } catch (error) {
         if (error.response?.status === 422) {
             errors.value = error.response.data.errors || {}
 
+            // Scroll to first error
             setTimeout(() => {
                 const firstError = document.querySelector('.is-invalid')
                 if (firstError) {
@@ -514,19 +497,27 @@ const handleModalClose = () => {
 }
 
 const viewStock = () => {
-    if (updatedStock.value) {
-        router.push({ name: 'stocks.show', params: { id: updatedStock.value.id } })
+    if (createdStock.value) {
+        router.push({ name: 'stocks.show', params: { id: createdStock.value.id } })
     } else {
         router.push({ name: 'stocks' })
     }
 }
 
+const createAnother = () => {
+    showSuccessModal.value = false
+    resetForm()
+    fetchProducts()
+
+    // Scroll to top
+    setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+    }, 100)
+}
+
 // Lifecycle
-onMounted(async () => {
-    await Promise.all([
-        fetchStock(),
-        fetchProducts()
-    ])
+onMounted(() => {
+    fetchProducts()
 })
 </script>
 
@@ -552,13 +543,5 @@ onMounted(async () => {
 option:disabled {
     color: #6c757d;
     font-style: italic;
-}
-
-/* Loading state */
-.loading-container {
-    min-height: 300px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 </style>

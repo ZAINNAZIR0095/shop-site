@@ -2,12 +2,24 @@
 
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\StockReportController;
+use App\Http\Controllers\TransactionReport;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\DashBoardController;
 
 // Clear route cache first
 // php artisan route:clear
+
+use App\Http\Controllers\AuthController;
+
+// Public routes
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+
+// Protected routes
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/user', [AuthController::class, 'user']);
+});
 
 // 1. API Routes (MUST come first)
 Route::post('/products', [ProductController::class, 'store']);
@@ -29,6 +41,12 @@ Route::get('/stocks/parties/list', [StockController::class, 'getParties']);
     Route::get('/stocks/report/detailed', [StockReportController::class, 'getDetailedStockReport']);
     Route::get('/stocks/export', [StockReportController::class, 'exportToExcel']);
     Route::get('/stocks/low-stock', [StockReportController::class, 'getLowStockReport']);
+
+    // transaction report routes
+        Route::get('/transactions/report', [TransactionReport::class, 'index']);
+    Route::get('/transactions/report/export', [TransactionReport::class, 'exportExcel']);
+    Route::get('/transactions/report/pdf', [TransactionReport::class, 'exportPDF']);
+    Route::get('/transactions/{id}/print', [TransactionReport::class, 'printTransaction']);
 
     // Dashboard routes
     Route::prefix('dashboard')->group(function () {

@@ -6,7 +6,7 @@
             <CCardBody>
                 <CRow class="align-items-center">
                     <CCol :md="8">
-                        <h1 class="display-6 mb-2">Welcome back, {{ userName }}! 👋</h1>
+                        <h1 class="display-6 mb-2">Welcome back, {{ name }}! 👋</h1>
                         <p class="mb-0">Here's what's happening with your inventory today.</p>
                         <div class="mt-2">
                             <CBadge color="light" class="me-2">
@@ -85,43 +85,64 @@
         <!-- Charts Row -->
         <CRow class="mb-4">
             <CCol :md="8">
-                <CCard class="h-100">
-                    <CCardHeader>
-                        <h5 class="mb-0">Profit & Loss Trend</h5>
-                        <small class="text-muted">Last 30 days performance</small>
-                    </CCardHeader>
-                    <CCardBody>
-                        <div v-if="loadingChart" class="text-center py-6">
-                            <CSpinner />
-                            <p class="mt-2">Loading chart...</p>
-                        </div>
-                        <div v-else-if="profitData.length === 0" class="text-center py-6">
-                            <CIcon :icon="cilChart" size="3xl" class="text-muted mb-3" />
-                            <p>No profit data available</p>
-                        </div>
-                        <canvas v-else ref="profitChart"></canvas>
-                    </CCardBody>
-                </CCard>
-            </CCol>
+    <CCard class="h-100">
+        <CCardHeader>
+            <h5 class="mb-0">Profit & Loss Trend</h5>
+            <small class="text-muted">Last 30 days performance</small>
+        </CCardHeader>
+        <CCardBody>
+            <div v-if="loadingChart" class="text-center py-6">
+                <CSpinner />
+                <p class="mt-2">Loading chart...</p>
+            </div>
+            <div v-else-if="profitData.length === 0" class="text-center py-6">
+                <CIcon :icon="cilChart" size="3xl" class="text-muted mb-3" />
+                <p>No profit data available</p>
+            </div>
+            <div v-else class="chart-container">
+                <canvas ref="profitChart"></canvas>
+            </div>
+        </CCardBody>
+    </CCard>
+</CCol>
 
-            <CCol :md="4">
-                <CCard class="h-100">
-                    <CCardHeader>
-                        <h5 class="mb-0">Stock Overview</h5>
-                        <small class="text-muted">By categories</small>
-                    </CCardHeader>
-                    <CCardBody>
-                        <div v-if="loadingChart" class="text-center py-6">
-                            <CSpinner />
+  <CCol :md="4">
+    <CCard class="h-100">
+        <CCardHeader>
+            <h5 class="mb-0">Transaction Distribution</h5>
+            <small class="text-muted">Recent activities by type</small>
+        </CCardHeader>
+        <CCardBody>
+            <div v-if="loadingChart" class="text-center py-6">
+                <CSpinner />
+            </div>
+            <div v-else-if="transactionDistribution.length === 0" class="text-center py-6">
+                <CIcon :icon="cilChartPie" size="3xl" class="text-muted mb-3" />
+                <p>No transaction data available</p>
+            </div>
+            <div v-else>
+                <!-- Add this container div -->
+                <div class="chart-container">
+                    <canvas ref="transactionChart"></canvas>
+                </div>
+                <!-- Legend below chart -->
+                <div class="mt-3">
+                    <div class="d-flex justify-content-center flex-wrap gap-2">
+                        <div v-for="(item, index) in transactionDistribution" :key="index"
+                             class="d-flex align-items-center me-3">
+                            <div class="legend-dot me-2"
+                                 :style="{ backgroundColor: item.color, width: '10px', height: '10px', borderRadius: '50%' }"></div>
+                            <small>
+                                {{ item.type }}: {{ item.count }} ({{ item.percentage }}%)
+                            </small>
                         </div>
-                        <div v-else-if="stockOverview.length === 0" class="text-center py-6">
-                            <CIcon :icon="cilChartPie" size="3xl" class="text-muted mb-3" />
-                            <p>No stock data available</p>
-                        </div>
-                        <canvas v-else ref="stockChart"></canvas>
-                    </CCardBody>
-                </CCard>
-            </CCol>
+                    </div>
+                </div>
+            </div>
+        </CCardBody>
+    </CCard>
+</CCol>
+
         </CRow>
 
         <!-- Low Stock Alerts -->
@@ -341,7 +362,7 @@ const router = useRouter()
 const loading = ref(true)
 const loadingChart = ref(false)
 const loadingActivities = ref(false)
-const userName = ref('User')
+const name = ref('User')
 const currentDate = ref('')
 const currentTime = ref('')
 const stats = ref({})
@@ -378,9 +399,11 @@ const fetchDashboardData = async () => {
         if (lowStockRes.data.success) lowStockProducts.value = lowStockRes.data.data
         if (activitiesRes.data.success) recentActivities.value = activitiesRes.data.data
 
+        console.log(stats.value)
+
 
         // Set user name from stats or localStorage
-        userName.value = stats.value.user_name ||
+        name.value = stats.value.user ||
                         localStorage.getItem('user_name') ||
                         'User'
 
@@ -396,6 +419,126 @@ const fetchDashboardData = async () => {
     }
 }
 
+const transactionDistribution = computed(() => {
+    if (!recentActivities.value || recentActivities.value.length === 0) {
+        return [];
+    }
+
+    // Group activities by type
+    const typeCounts = {};
+    const typeAmounts = {};
+
+    // Colors for different transaction types
+    const typeColors = {
+        'sale': '#4CAF50',      // Green
+        'purchase': '#2196F3',  // Blue
+        'issue': '#FF9800',     // Orange
+        'return': '#9C27B0'     // Purple
+    };
+
+    // Default color for unknown types
+    const defaultColor = '#607D8B'; // Blue Grey
+
+    // Count transactions by type
+    recentActivities.value.forEach(activity => {
+        const type = activity.type || 'unknown';
+
+        if (!typeCounts[type]) {
+            typeCounts[type] = 0;
+            typeAmounts[type] = 0;
+        }
+
+        typeCounts[type]++;
+
+        // Extract amount from description
+        const description = activity.description || '';
+        const amountMatch = description.match(/PKR\s*([\d,]+\.?\d*)/);
+        if (amountMatch) {
+            const amount = parseFloat(amountMatch[1].replace(/,/g, ''));
+            typeAmounts[type] += amount;
+        }
+    });
+
+    const totalCount = recentActivities.value.length;
+
+    // Convert to array format
+    return Object.keys(typeCounts).map(type => {
+        const count = typeCounts[type];
+        const totalAmount = typeAmounts[type];
+        const percentage = Math.round((count / totalCount) * 100);
+
+        return {
+            type: type.charAt(0).toUpperCase() + type.slice(1), // Capitalize
+            count: count,
+            totalAmount: totalAmount,
+            percentage: percentage,
+            color: typeColors[type] || defaultColor
+        };
+    }).sort((a, b) => b.count - a.count); // Sort by count descending
+});
+
+// Add chart instance reference
+let transactionChartInstance = null;
+const transactionChart = ref(null);
+
+    // Add this function after transactionDistribution computed property
+const initializeTransactionChart = () => {
+    if (transactionDistribution.value.length > 0 && transactionChart.value) {
+        const ctx = transactionChart.value.getContext('2d');
+
+        // Destroy previous chart instance if exists
+        if (transactionChartInstance) {
+            transactionChartInstance.destroy();
+        }
+
+        // Prepare chart data
+        const chartData = {
+            labels: transactionDistribution.value.map(item => item.type),
+            datasets: [{
+                data: transactionDistribution.value.map(item => item.count),
+                backgroundColor: transactionDistribution.value.map(item => item.color),
+                borderWidth: 2,
+                borderColor: '#fff',
+                hoverOffset: 10
+            }]
+        };
+
+        // Create chart
+        transactionChartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false, // This is important!
+                plugins: {
+                    legend: {
+                        display: false,
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const item = transactionDistribution.value[context.dataIndex];
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+
+                                return [
+                                    `${label}: ${value} transactions`,
+                                    `Total: PKR ${formatCurrency(item.totalAmount)}`,
+                                    `${item.percentage}% of total`
+                                ];
+                            }
+                        }
+                    }
+                },
+                cutout: '65%',
+                animation: {
+                    animateScale: true,
+                    animateRotate: true
+                }
+            }
+        });
+    }
+};
 const initializeCharts = () => {
     // Destroy existing charts
     if (profitChartInstance) {
@@ -469,6 +612,8 @@ const initializeCharts = () => {
                 }
             }
         })
+          // Initialize Transaction Chart
+    initializeTransactionChart();
     }
 
     // Initialize Stock Overview Chart
@@ -509,6 +654,7 @@ const initializeCharts = () => {
             }
         })
     }
+
 }
 
 // Helper methods
@@ -677,5 +823,23 @@ onMounted(() => {
 
 .text-small {
     font-size: 0.875rem;
+}
+
+.chart-container {
+    position: relative;
+    height: 250px;
+}
+
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+@media (max-width: 768px) {
+    .chart-container {
+        height: 200px;
+    }
 }
 </style>

@@ -58,7 +58,7 @@ class DashboardController extends Controller
                 'low_stock_count' => $lowStockCount,
                 'monthly_profit' => $monthlyProfit,
                 'profit_margin' => $profitMargin,
-                'user_name' => 'no user'
+                'user_name' => $user
             ]
         ]);
     }
@@ -191,7 +191,7 @@ class DashboardController extends Controller
     {
         $activities = Stock::with(['user', 'details.product'])
             ->latest()
-            ->limit(10)
+            ->limit(3)
             ->get()
             ->map(function ($stock) {
                 $description = $this->generateActivityDescription($stock);

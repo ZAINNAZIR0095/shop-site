@@ -1,12 +1,6 @@
     <!-- resources/js/views/stocks/StocksList.vue -->
     <template>
         <div>
-            <!-- Breadcrumb -->
-            <CBreadcrumb class="my-3">
-                <CBreadcrumbItem :to="{ name: 'home' }">Dashboard</CBreadcrumbItem>
-                <CBreadcrumbItem active>Stocks</CBreadcrumbItem>
-            </CBreadcrumb>
-
             <!-- Header with filters and actions -->
             <CCard class="mb-4">
                 <CCardBody>
@@ -29,18 +23,18 @@
                             <!-- Reports Dropdown -->
                             <CDropdown>
                                 <CDropdownToggle color="info">
-                                    <CIcon :icon="cil-chart" class="me-2" />
+                                    <CIcon class="me-2" />
                                     Reports
                                 </CDropdownToggle>
                                 <CDropdownMenu>
-                                    <CDropdownItem :to="{ name: 'reports.stock-summary' }">
-                                        Stock Summary
-                                    </CDropdownItem>
-                                    <CDropdownItem :to="{ name: 'reports.low-stock' }">
-                                        Low Stock
-                                    </CDropdownItem>
-                                    <CDropdownItem :to="{ name: 'reports.daily-summary' }">
+                                    <CDropdownItem @click="dailySummary">
                                         Daily Summary
+                                    </CDropdownItem>
+                                    <CDropdownItem @click="weeklySummary">>
+                                        Weekly Summary
+                                    </CDropdownItem>
+                                    <CDropdownItem @click="monthlySummary">>
+                                        Monthly Summary
                                     </CDropdownItem>
                                 </CDropdownMenu>
                             </CDropdown>
@@ -96,13 +90,11 @@
 
                     <!-- Empty State -->
                     <div v-else-if="stocks.length === 0" class="text-center py-6">
-                        <CIcon name="cil-inbox" size="3xl" class="text-muted mb-3" />
                         <h5 class="text-h5">No Stock Records Found</h5>
                         <p class="text-body-1 text-medium-emphasis mb-4">
                             Get started by creating your first stock entry
                         </p>
                         <CButton color="primary" :to="{ name: 'stocks.create' }">
-                            <CIcon name="cil-plus" class="me-2" />
                             Create Stock Entry
                         </CButton>
                     </div>
@@ -267,20 +259,6 @@
     import { useRouter } from 'vue-router'
     import axios from 'axios'
     import debounce from 'lodash/debounce'
-
-    // CoreUI Components
-    // import {
-    //     CCard, CCardBody, CCardHeader,
-    //     CTable, CTableHead, CTableBody, CTableRow, CTableHeaderCell, CTableDataCell,
-    //     CSpinner, CBadge, CPagination, CPaginationItem,
-    //     CBreadcrumb, CBreadcrumbItem,
-    //     CModal, CModalHeader, CModalTitle, CModalBody, CModalFooter,
-    //     CButton, CButtonGroup,
-    //     CRow, CCol,
-    //     CFormSelect, CFormInput,
-    //     CDropdown, CDropdownToggle, CDropdownMenu, CDropdownItem,
-
-    // } from '@coreui/vue'
     import { CIcon } from '@coreui/icons-vue'
     import { cilEyedropper } from '@coreui/icons'
     import { cilPencil , cilTrash, cilSortAlphaDown  , cilFullscreen} from '@coreui/icons'
@@ -354,6 +332,65 @@
             loading.value = false
         }
     }
+    const dailySummary = async (page = 1) => {
+        loading.value = true
+
+        try {
+    const today = new Date();
+
+    filters.start_date = formatDate(today);
+    filters.end_date = formatDate(today);
+    fetchStocks();
+        } catch (error) {
+            console.error('Error fetching stocks:', error)
+        } finally {
+            loading.value = false
+        }
+    }
+   const weeklySummary = async (page = 1) => {
+  loading.value = true;
+
+  try {
+    const today = new Date();
+    const lastWeek = new Date();
+
+    lastWeek.setDate(today.getDate() - 6); // last 7 days
+
+    filters.start_date = formatDate(lastWeek);
+    filters.end_date = formatDate(today);
+
+    fetchStocks();
+  } catch (error) {
+    console.error('Error fetching stocks:', error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+const monthlySummary = async (page = 1) => {
+  loading.value = true;
+
+  try {
+    const today = new Date();
+
+    const firstDayOfMonth = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      1
+    );
+
+    filters.start_date = formatDate(firstDayOfMonth);
+    filters.end_date = formatDate(today);
+
+    fetchStocks();
+  } catch (error) {
+    console.error('Error fetching stocks:', error);
+  } finally {
+    loading.value = false;
+  }
+};
+
+
 
     const debounceSearch = debounce(() => {
         fetchStocks()
