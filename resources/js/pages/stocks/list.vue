@@ -14,9 +14,9 @@
                         <!-- Actions -->
                         <div class="d-flex flex-wrap gap-2">
                             <router-link :to="{ name: 'stocks.create' }">
-                                <CButton color="primary" :to="{ name: 'stocks.create' }">
+                                <CButton color="primary" class="text-white" :to="{ name: 'stocks.create' }">
                                     New Stock Entry
-                                    <CIcon :icon="cil-plus" class="me-2" />
+                                    <CIcon :icon="cilPlus" class="me-2" />
                                 </CButton>
                             </router-link>
 
@@ -54,8 +54,6 @@
                                 <option value="">All Types</option>
                                 <option value="purchase">Purchase</option>
                                 <option value="sale">Sale</option>
-                                <option value="issue">Issue</option>
-                                <option value="return">Return</option>
                             </CFormSelect>
                         </CCol>
 
@@ -261,7 +259,7 @@
     import debounce from 'lodash/debounce'
     import { CIcon } from '@coreui/icons-vue'
     import { cilEyedropper } from '@coreui/icons'
-    import { cilPencil , cilTrash, cilSortAlphaDown  , cilFullscreen} from '@coreui/icons'
+    import { cilPencil , cilTrash, cilSortAlphaDown , cilPlus  , cilFullscreen} from '@coreui/icons'
 
     const router = useRouter()
 
@@ -287,8 +285,6 @@
         { value: '', label: 'All Types' },
         { value: 'purchase', label: 'Purchase' },
         { value: 'sale', label: 'Sale' },
-        { value: 'issue', label: 'Issue' },
-        { value: 'return', label: 'Return' }
     ]
 
     // Methods
@@ -447,8 +443,6 @@ const monthlySummary = async (page = 1) => {
         const types = {
             purchase: 'Purchase',
             sale: 'Sale',
-            issue: 'Issue',
-            return: 'Return'
         }
         return types[type] || type
     }
@@ -457,8 +451,6 @@ const monthlySummary = async (page = 1) => {
         const colors = {
             purchase: 'success',
             sale: 'info',
-            issue: 'warning',
-            return: 'secondary'
         }
         return colors[type] || 'primary'
     }

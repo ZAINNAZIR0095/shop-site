@@ -3,12 +3,12 @@
         <CCard>
             <CCardHeader class="d-flex justify-content-between align-items-center">
                 <strong>Products List</strong>
+                <router-link to="/products-create" class=" text-white">
                 <CButton color="primary" :to="{ name: 'products.create' }">
-                    <router-link to="/products-create" class="nav-link">
-                        <CIcon custom-class-name="nav-icon" :name="cilSpeedometer" />
+                    <CIcon  :icon="cilSpeedometer" />
                         add product
-                    </router-link>
-                </CButton>
+                    </CButton>
+                </router-link>
             </CCardHeader>
             <CCardBody>
                 <!-- Search and Filter -->
@@ -75,11 +75,12 @@
                                 <CButtonGroup>
                                     <CButton color="info" size="sm"
                                         :to="{ name: 'products.edit', params: { id: product.id } }">
-                                        <router-link  :to="{ name: 'products.edit', params: { id: product.id } }" class="nav-link">edit</router-link>
-                                        <CIcon name="cil-pencil" />
+                                        <router-link :to="{ name: 'products.edit', params: { id: product.id } }">
+                                            <CIcon name="cil-pencil" />
+
+                                        </router-link>
                                     </CButton>
                                     <CButton color="danger" size="sm" @click="confirmDelete(product)">
-                                        delete
                                         <CIcon name="cil-trash" />
                                     </CButton>
                                 </CButtonGroup>
@@ -114,7 +115,7 @@
                     <p>Get started by creating your first product</p>
                     <CButton color="primary" to="/products-create">
                         <router-link to="/products-create" class="nav-link">
-                            <CIcon custom-class-name="nav-icon" :name="cilSpeedometer" />
+                            <CIcon custom-class-name="nav-icon" :icon="cilSpeedometer" />
                             create product
                         </router-link>
                     </CButton>
@@ -156,6 +157,7 @@ import {
     CBadge, CPagination, CPaginationItem,
     CModal, CModalHeader, CModalTitle, CModalBody, CModalFooter
 } from '@coreui/vue'
+import { cilSpeedometer } from '@coreui/icons'
 
 import { cilPlus, cilPencil, cilTrash, cilInbox } from '@coreui/icons'
 import { cilSearch } from '@coreui/icons'

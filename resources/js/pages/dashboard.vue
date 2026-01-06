@@ -9,11 +9,11 @@
                         <h1 class="display-6 mb-2">Welcome back, {{ name }}! 👋</h1>
                         <p class="mb-0">Here's what's happening with your inventory today.</p>
                         <div class="mt-2">
-                            <CBadge color="light" class="me-2">
+                            <CBadge  class="me-2">
                                 <CIcon :icon="cilCalendar" class="me-1" />
                                 {{ currentDate }}
                             </CBadge>
-                            <CBadge color="light">
+                            <CBadge >
                                 <CIcon :icon="cilClock" class="me-1" />
                                 {{ currentTime }}
                             </CBadge>
@@ -227,7 +227,7 @@
             <CButtonGroup>
                 <router-link :to="{ name: 'products.edit', params: { id: product.id } }">
                     <CButton size="sm" color="primary" title="Edit Product">
-                        <CIcon :icon="cilPencil" />
+                        <CIcon class="text-green" :icon="cilPencil" />
                     </CButton>
                 </router-link>
                 <router-link :to="{ name: 'stocks.create', query: { product_id: product.id, type: 'purchase' } }">
@@ -242,8 +242,8 @@
                     </CTable>
 
                     <div class="mt-3 text-end">
-                        <!-- <router-link :to="{ name: 'reports.low-stock' }"> -->
-                            <CButton color="outline-warning" size="sm">
+                        <!-- <router-link to="/products"> -->
+                            <CButton color="outline-warning" @click="navigateTo('/stocks-report')" size="sm">
                                 View All Low Stock Reports
                                 <CIcon :icon="cilArrowRight" class="ms-1" />
                             </CButton>
@@ -295,32 +295,44 @@
                         <h5 class="mb-0">Quick Actions</h5>
                     </CCardHeader>
                     <CCardBody>
-                        <CRow class="g-3">
-                            <CCol :md="6">
-                                <CButton color="primary" class="w-100 h-100 py-4" :to="{ name: 'stocks.create', query: { type: 'sale' } }">
-                                    <CIcon :icon="cilCash" size="xl" class="mb-2" />
-                                    <div>New Sale</div>
-                                </CButton>
-                            </CCol>
-                            <CCol :md="6">
-                                <CButton color="success" class="w-100 h-100 py-4" :to="{ name: 'stocks.create', query: { type: 'purchase' } }">
-                                    <CIcon :icon="cilCart" size="xl" class="mb-2" />
-                                    <div>New Purchase</div>
-                                </CButton>
-                            </CCol>
-                            <CCol :md="6">
-                                <CButton color="info" class="w-100 h-100 py-4" :to="{ name: 'products.create' }">
-                                    <CIcon :icon="cilPlus" size="xl" class="mb-2" />
-                                    <div>Add Product</div>
-                                </CButton>
-                            </CCol>
-                            <CCol :md="6">
-                                <CButton color="warning" class="w-100 h-100 py-4" :to="{ name: 'reports.daily-summary' }">
-                                    <CIcon :icon="cilChart" size="xl" class="mb-2" />
-                                    <div>Daily Report</div>
-                                </CButton>
-                            </CCol>
-                        </CRow>
+                  <CRow class="g-3">
+  <CCol :md="6">
+    <router-link :to="{ name: 'stocks.create', query: { type: 'sale' } }" class="d-block text-decoration-none text-white">
+      <CButton color="primary" class="w-100 h-100 py-4">
+        <CIcon :icon="cilCash" size="xl" class="mb-2" />
+        <div>New Sale</div>
+      </CButton>
+    </router-link>
+  </CCol>
+
+  <CCol :md="6">
+    <router-link :to="{ name: 'stocks.create', query: { type: 'purchase' } }" class="d-block text-decoration-none text-white">
+      <CButton color="success" class="w-100 h-100 py-4">
+        <CIcon :icon="cilCart" size="xl" class="mb-2" />
+        <div>New Purchase</div>
+      </CButton>
+    </router-link>
+  </CCol>
+
+  <CCol :md="6">
+    <router-link :to="{ name: 'products.create' }" class="d-block text-decoration-none text-white">
+      <CButton color="info" class="w-100 h-100 py-4">
+        <CIcon :icon="cilPlus" size="xl" class="mb-2" />
+        <div>Add Product</div>
+      </CButton>
+    </router-link>
+  </CCol>
+
+  <CCol :md="6">
+    <router-link :to="{ name: 'stocks.transaction' }" class="d-block text-decoration-none text-white">
+      <CButton color="warning" class="w-100 h-100 py-4">
+        <CIcon :icon="cilChart" size="xl" class="mb-2" />
+        <div>Daily Report</div>
+      </CButton>
+    </router-link>
+  </CCol>
+</CRow>
+
                     </CCardBody>
                 </CCard>
             </CCol>
@@ -399,7 +411,7 @@ const fetchDashboardData = async () => {
         if (lowStockRes.data.success) lowStockProducts.value = lowStockRes.data.data
         if (activitiesRes.data.success) recentActivities.value = activitiesRes.data.data
 
-        console.log(stats.value)
+        console.log(lowStockRes.data)
 
 
         // Set user name from stats or localStorage
@@ -417,6 +429,10 @@ const fetchDashboardData = async () => {
         // Initialize charts after data is loaded
         setTimeout(initializeCharts, 100)
     }
+}
+
+const navigateTo = (path) => {
+    router.push(path)
 }
 
 const transactionDistribution = computed(() => {

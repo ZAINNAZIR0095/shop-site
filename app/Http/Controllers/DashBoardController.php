@@ -176,7 +176,7 @@ class DashboardController extends Controller
                     WHERE stock_details.product_id = products.id
                 ), 0) as current_stock')
             ])
-            ->havingRaw('current_stock <= products.min_limit OR current_stock <= 10')
+            ->havingRaw('current_stock <= products.min_limit')
             ->orderBy('current_stock', 'asc')
             ->limit(10)
             ->get();
