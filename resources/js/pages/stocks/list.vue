@@ -139,7 +139,8 @@
                                     <!-- Items -->
                                     <CTableDataCell>
                                         <div class="product-list">
-                                            <div v-for="detail in stock.details.slice(0, 2)" :key="detail.id" class="mb-1">
+                                            <div v-for="detail in stock.details.slice(0, 2)" :key="detail.id"
+                                                class="mb-1">
                                                 <small>
                                                     {{ detail.product?.name }} × {{ detail.quantity }}
                                                     <span class="text-muted">{{ detail.product?.unit }}</span>
@@ -176,20 +177,21 @@
                                         <CButtonGroup>
                                             <router-link :to="{ name: 'stocks.show', params: { id: stock.id } }">
                                                 <CButton size="sm" color="info"
-                                                    :to="{ name: 'stocks.show', params: { id: stock.id } }" title="View">
+                                                    :to="{ name: 'stocks.show', params: { id: stock.id } }"
+                                                    title="View">
 
                                                     <CIcon :icon="cilFullscreen" />
                                                 </CButton>
-                                                </router-link>
-                                                <router-link :to="{ name: 'stocks.edit', params: { id: stock.id } }">
-                                                    <CButton color="warning" size="sm">
-                                                        <CIcon :icon="cilPencil" />
-                                                    </CButton>
-                                                </router-link>
-                                                <CButton size="sm" color="danger" @click="confirmDelete(stock)"
-                                                    title="Delete">
-                                                    <CIcon :icon="cilTrash" />
+                                            </router-link>
+                                            <router-link :to="{ name: 'stocks.edit', params: { id: stock.id } }">
+                                                <CButton color="warning" size="sm">
+                                                    <CIcon :icon="cilPencil" />
                                                 </CButton>
+                                            </router-link>
+                                            <CButton size="sm" color="danger" @click="confirmDelete(stock)"
+                                                title="Delete">
+                                                <CIcon :icon="cilTrash" />
+                                            </CButton>
                                         </CButtonGroup>
                                     </CTableDataCell>
                                 </CTableRow>
@@ -237,7 +239,7 @@
                         Amount: PKR {{ formatCurrency(stockToDelete.net_price) }}
                     </div>
                     <p class="text-danger mt-2">
-                        <CIcon :icon="cil-warning" class="me-1" />
+                        <CIcon :icon="cil - warning" class="me-1" />
                         This action cannot be undone.
                     </p>
                 </CModalBody>
@@ -252,254 +254,261 @@
         </div>
     </template>
 
-    <script setup>
-    import { ref, reactive, computed, onMounted } from 'vue'
-    import { useRouter } from 'vue-router'
-    import axios from 'axios'
-    import debounce from 'lodash/debounce'
-    import { CIcon } from '@coreui/icons-vue'
-    import { cilEyedropper } from '@coreui/icons'
-    import { cilPencil , cilTrash, cilSortAlphaDown , cilPlus  , cilFullscreen} from '@coreui/icons'
+<script setup>
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import axios from 'axios'
+import debounce from 'lodash/debounce'
+import { CIcon } from '@coreui/icons-vue'
+import { cilEyedropper } from '@coreui/icons'
+import Swal from 'sweetalert2'
+import { cilPencil, cilTrash, cilSortAlphaDown, cilPlus, cilFullscreen } from '@coreui/icons'
 
-    const router = useRouter()
+const router = useRouter()
 
-    // Data
-    const stocks = ref([])
-    const loading = ref(true)
-    const deleting = ref(false)
-    const showDeleteModal = ref(false)
-    const stockToDelete = ref(null)
-    const meta = ref(null)
-    const links = ref({})
+// Data
+const stocks = ref([])
+const loading = ref(true)
+const deleting = ref(false)
+const showDeleteModal = ref(false)
+const stockToDelete = ref(null)
+const meta = ref(null)
+const links = ref({})
 
-    // Filters
-    const filters = reactive({
-        stock_type: '',
-        start_date: '',
-        end_date: '',
-        party_name: ''
-    })
+// Filters
+const filters = reactive({
+    stock_type: '',
+    start_date: '',
+    end_date: '',
+    party_name: ''
+})
 
-    // Stock type options for select
-    const stockTypeOptions = [
-        { value: '', label: 'All Types' },
-        { value: 'purchase', label: 'Purchase' },
-        { value: 'sale', label: 'Sale' },
-    ]
+// Stock type options for select
+const stockTypeOptions = [
+    { value: '', label: 'All Types' },
+    { value: 'purchase', label: 'Purchase' },
+    { value: 'sale', label: 'Sale' },
+]
 
-    // Methods
-    const fetchStocks = async (page = 1) => {
-        loading.value = true
+// Methods
+const fetchStocks = async (page = 1) => {
+    loading.value = true
 
-        try {
-            const params = {
-                page,
-                ...filters
-            }
+    try {
+        const params = {
+            page,
+            ...filters
+        }
 
-            // Remove empty filters
-            Object.keys(params).forEach(key => {
-                if (!params[key]) delete params[key]
-            })
+        // Remove empty filters
+        Object.keys(params).forEach(key => {
+            if (!params[key]) delete params[key]
+        })
 
-            const response = await axios.get('/stocks', { params })
+        const response = await axios.get('/stocks', { params })
 
         if (response.data.success) {
-    const paginatedData = response.data.data;
+            const paginatedData = response.data.data;
 
-    stocks.value = paginatedData.data;                    // the stock records
-    meta.value = {
-        current_page: paginatedData.current_page,
-        last_page: paginatedData.last_page,
-        from: paginatedData.from,
-        to: paginatedData.to,
-        total: paginatedData.total,
-        per_page: paginatedData.per_page,
-    };
-    links.value = {
-        prev: paginatedData.prev_page_url,
-        next: paginatedData.next_page_url,
-    };
+            stocks.value = paginatedData.data;                    // the stock records
+            meta.value = {
+                current_page: paginatedData.current_page,
+                last_page: paginatedData.last_page,
+                from: paginatedData.from,
+                to: paginatedData.to,
+                total: paginatedData.total,
+                per_page: paginatedData.per_page,
+            };
+            links.value = {
+                prev: paginatedData.prev_page_url,
+                next: paginatedData.next_page_url,
+            };
+        }
+        console.log(response.data)
+    } catch (error) {
+        console.error('Error fetching stocks:', error)
+    } finally {
+        loading.value = false
+    }
 }
-            console.log(response.data)
-        } catch (error) {
-            console.error('Error fetching stocks:', error)
-        } finally {
-            loading.value = false
-        }
+const dailySummary = async (page = 1) => {
+    loading.value = true
+
+    try {
+        const today = new Date();
+
+        filters.start_date = formatDate(today);
+        filters.end_date = formatDate(today);
+        fetchStocks();
+    } catch (error) {
+        console.error('Error fetching stocks:', error)
+    } finally {
+        loading.value = false
     }
-    const dailySummary = async (page = 1) => {
-        loading.value = true
+}
+const weeklySummary = async (page = 1) => {
+    loading.value = true;
 
-        try {
-    const today = new Date();
+    try {
+        const today = new Date();
+        const lastWeek = new Date();
 
-    filters.start_date = formatDate(today);
-    filters.end_date = formatDate(today);
-    fetchStocks();
-        } catch (error) {
-            console.error('Error fetching stocks:', error)
-        } finally {
-            loading.value = false
-        }
+        lastWeek.setDate(today.getDate() - 6); // last 7 days
+
+        filters.start_date = formatDate(lastWeek);
+        filters.end_date = formatDate(today);
+
+        fetchStocks();
+    } catch (error) {
+        console.error('Error fetching stocks:', error);
+    } finally {
+        loading.value = false;
     }
-   const weeklySummary = async (page = 1) => {
-  loading.value = true;
-
-  try {
-    const today = new Date();
-    const lastWeek = new Date();
-
-    lastWeek.setDate(today.getDate() - 6); // last 7 days
-
-    filters.start_date = formatDate(lastWeek);
-    filters.end_date = formatDate(today);
-
-    fetchStocks();
-  } catch (error) {
-    console.error('Error fetching stocks:', error);
-  } finally {
-    loading.value = false;
-  }
 };
 
 const monthlySummary = async (page = 1) => {
-  loading.value = true;
+    loading.value = true;
 
-  try {
-    const today = new Date();
+    try {
+        const today = new Date();
 
-    const firstDayOfMonth = new Date(
-      today.getFullYear(),
-      today.getMonth(),
-      1
-    );
+        const firstDayOfMonth = new Date(
+            today.getFullYear(),
+            today.getMonth(),
+            1
+        );
 
-    filters.start_date = formatDate(firstDayOfMonth);
-    filters.end_date = formatDate(today);
+        filters.start_date = formatDate(firstDayOfMonth);
+        filters.end_date = formatDate(today);
 
-    fetchStocks();
-  } catch (error) {
-    console.error('Error fetching stocks:', error);
-  } finally {
-    loading.value = false;
-  }
+        fetchStocks();
+    } catch (error) {
+        console.error('Error fetching stocks:', error);
+    } finally {
+        loading.value = false;
+    }
 };
 
 
 
-    const debounceSearch = debounce(() => {
-        fetchStocks()
-    }, 500)
+const debounceSearch = debounce(() => {
+    fetchStocks()
+}, 500)
 
-    const changePage = (page) => {
-        if (page >= 1 && page <= meta.value.last_page) {
-            fetchStocks(page)
-            window.scrollTo({ top: 0, behavior: 'smooth' })
+const changePage = (page) => {
+    if (page >= 1 && page <= meta.value.last_page) {
+        fetchStocks(page)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+}
+
+const confirmDelete = (stock) => {
+    stockToDelete.value = stock
+    showDeleteModal.value = true
+}
+
+const deleteStock = async () => {
+    deleting.value = true
+
+    try {
+        await axios.delete(`/stocks/${stockToDelete.value.id}`)
+
+        // Refresh the list
+        fetchStocks(meta.value.current_page)
+
+        showDeleteModal.value = false
+        stockToDelete.value = null
+    } catch (error) {
+        console.error('Error deleting stock:', error)
+        if (!response.data.success) {
+            Swal.fire({
+                title: 'Delete Failed',
+                text: 'Failed to delete stock record',
+                icon: 'error'
+            })
         }
+    } finally {
+        deleting.value = false
     }
+}
 
-    const confirmDelete = (stock) => {
-        stockToDelete.value = stock
-        showDeleteModal.value = true
-    }
-
-    const deleteStock = async () => {
-        deleting.value = true
-
-        try {
-            await axios.delete(`/stocks/${stockToDelete.value.id}`)
-
-            // Refresh the list
-            fetchStocks(meta.value.current_page)
-
-            showDeleteModal.value = false
-            stockToDelete.value = null
-        } catch (error) {
-            console.error('Error deleting stock:', error)
-            alert('Failed to delete stock record')
-        } finally {
-            deleting.value = false
-        }
-    }
-
-    // Helper methods
-    const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleDateString('en-PK', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        })
-    }
-
-    const formatDateTime = (dateString) => {
-        return new Date(dateString).toLocaleTimeString('en-PK', {
-            hour: '2-digit',
-            minute: '2-digit'
-        })
-    }
-
-    const formatStockType = (type) => {
-        const types = {
-            purchase: 'Purchase',
-            sale: 'Sale',
-        }
-        return types[type] || type
-    }
-
-    const getStockTypeColor = (type) => {
-        const colors = {
-            purchase: 'success',
-            sale: 'info',
-        }
-        return colors[type] || 'primary'
-    }
-
-    const formatCurrency = (amount) => {
-        return parseFloat(amount || 0).toLocaleString('en-PK', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        })
-    }
-
-    const calculateTotalQuantity = (details) => {
-        return details.reduce((sum, detail) => sum + detail.quantity, 0)
-    }
-
-    // Computed properties
-    const visiblePages = computed(() => {
-        if (!meta.value) return []
-
-        const current = meta.value.current_page
-        const last = meta.value.last_page
-        const delta = 2
-        const range = []
-
-        for (let i = Math.max(2, current - delta); i <= Math.min(last - 1, current + delta); i++) {
-            range.push(i)
-        }
-
-        if (current - delta > 2) range.unshift('...')
-        if (current + delta < last - 1) range.push('...')
-
-        range.unshift(1)
-        if (last > 1) range.push(last)
-
-        return range
+// Helper methods
+const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-PK', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
     })
+}
 
-    // Lifecycle
-    onMounted(() => {
-        fetchStocks()
+const formatDateTime = (dateString) => {
+    return new Date(dateString).toLocaleTimeString('en-PK', {
+        hour: '2-digit',
+        minute: '2-digit'
     })
-    </script>
+}
 
-    <style scoped>
-    .product-list {
-        max-width: 200px;
+const formatStockType = (type) => {
+    const types = {
+        purchase: 'Purchase',
+        sale: 'Sale',
+    }
+    return types[type] || type
+}
+
+const getStockTypeColor = (type) => {
+    const colors = {
+        purchase: 'success',
+        sale: 'info',
+    }
+    return colors[type] || 'primary'
+}
+
+const formatCurrency = (amount) => {
+    return parseFloat(amount || 0).toLocaleString('en-PK', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    })
+}
+
+const calculateTotalQuantity = (details) => {
+    return details.reduce((sum, detail) => sum + detail.quantity, 0)
+}
+
+// Computed properties
+const visiblePages = computed(() => {
+    if (!meta.value) return []
+
+    const current = meta.value.current_page
+    const last = meta.value.last_page
+    const delta = 2
+    const range = []
+
+    for (let i = Math.max(2, current - delta); i <= Math.min(last - 1, current + delta); i++) {
+        range.push(i)
     }
 
-    .text-small {
-        font-size: 0.875rem;
-    }
-    </style>
+    if (current - delta > 2) range.unshift('...')
+    if (current + delta < last - 1) range.push('...')
+
+    range.unshift(1)
+    if (last > 1) range.push(last)
+
+    return range
+})
+
+// Lifecycle
+onMounted(() => {
+    fetchStocks()
+})
+</script>
+
+<style scoped>
+.product-list {
+    max-width: 200px;
+}
+
+.text-small {
+    font-size: 0.875rem;
+}
+</style>

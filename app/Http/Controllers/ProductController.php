@@ -13,6 +13,11 @@ class ProductController extends Controller
         $products = Product::latest()->paginate(10);
         return response()->json($products);
     }
+ public function activeProducts()
+    {
+        $products = Product::where('status' , 'active')->get();
+        return response()->json($products);
+    }
 
 public function store(Request $request)
 {
@@ -88,4 +93,20 @@ public function store(Request $request)
             'message' => 'Product deleted successfully'
         ]);
     }
+
+    public function updateStatus(Product $product, Request $request)
+{
+    $validated = $request->validate([
+        'status' => 'required|in:active,inactive'
+    ]);
+
+    $product->update(['status' => $validated['status']]);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Product status updated successfully',
+        'validated' => $validated,
+        'product' => $product,
+    ]);
+}
 }

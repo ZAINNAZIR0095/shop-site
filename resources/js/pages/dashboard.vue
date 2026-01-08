@@ -173,7 +173,6 @@
                         <CTableHead>
                             <CTableRow>
                                 <CTableHeaderCell>Product</CTableHeaderCell>
-                                <CTableHeaderCell>Category</CTableHeaderCell>
                                 <CTableHeaderCell>Current Stock</CTableHeaderCell>
                                 <CTableHeaderCell>Minimum Required</CTableHeaderCell>
                                 <CTableHeaderCell>Status</CTableHeaderCell>
@@ -196,10 +195,6 @@
                     </div>
                 </div>
             </div>
-        </CTableDataCell>
-
-        <CTableDataCell>
-            {{ product.category?.name || 'Uncategorized' }}
         </CTableDataCell>
 
         <CTableDataCell>

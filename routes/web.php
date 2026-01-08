@@ -24,8 +24,10 @@ Route::middleware('auth:sanctum')->group(function () {
 // 1. API Routes (MUST come first)
 Route::post('/products', [ProductController::class, 'store']);
 Route::get('/products', [ProductController::class, 'index']);
+Route::get('/active-products', [ProductController::class, 'activeProducts']);
 Route::get('/products/{id}', [ProductController::class, 'show']);
 Route::delete('/products/{product}', [ProductController::class, 'destroy']);
+Route::put('/products/{product}/status', [ProductController::class, 'updateStatus']);
 Route::put('/products/{product}', [ProductController::class, 'update']);
 
 // stock routes

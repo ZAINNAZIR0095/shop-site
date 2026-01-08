@@ -37,7 +37,7 @@
                     <CRow>
                         <CCol :md="3" class="mb-3">
                             <strong>Reference No:</strong>
-                            <p class="mb-0">{{ stock.reference_no || 'N/A' }}</p>
+                            <p class="mb-0">{{ stock.id || 'N/A' }}</p>
                         </CCol>
                         <CCol :md="3" class="mb-3">
                             <strong>Date:</strong>
@@ -191,7 +191,7 @@
                     <CIcon name="cil-warning" size="3xl" class="text-warning mb-3" />
                     <h5>Are you sure you want to delete this stock entry?</h5>
                     <p class="mb-0">
-                        <strong>Reference:</strong> {{ stock.reference_no || 'N/A' }}<br>
+                        <strong>Reference:</strong> {{ stock.id || 'N/A' }}<br>
                         <strong>Type:</strong> {{ formatStockType(stock.stock_type) }}<br>
                         <strong>Date:</strong> {{ formatDate(stock.date) }}<br>
                         <strong>Amount:</strong> PKR {{ formatCurrency(stock.net_price) }}
@@ -219,6 +219,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
+import Swal from 'sweetalert2'
 
 // CoreUI Components
 import {
@@ -336,25 +337,232 @@ const deleteStock = async () => {
 
         const response = await axios.delete(`/stocks/${route.params.id}`)
 
-        if (response.data.success) {
-            // Show success message
-            alert('Stock entry deleted successfully!')
-            // Redirect to stocks list
-            router.push({ name: 'stocks' })
-        } else {
-            alert(response.data.message || 'Failed to delete stock entry')
-        }
-    } catch (err) {
-        console.error('Error deleting stock:', err)
-        alert('An error occurred while deleting the stock entry.')
-    } finally {
+       if (response.data.success) {
+    // Show success message
+    Swal.fire({
+        title: 'Deleted!',
+        text: 'Stock entry deleted successfully!',
+        icon: 'success'
+    }).then(() => {
+        // Redirect to stocks list
+        router.push({ name: 'stocks' })
+    })
+} else {
+    Swal.fire({
+        title: 'Delete Failed',
+        text: response.data.message || 'Failed to delete stock entry',
+        icon: 'error'
+    })
+}
+
+} catch (err) {
+    console.error('Error deleting stock:', err)
+
+    Swal.fire({
+        title: 'Error',
+        text: 'An error occurred while deleting the stock entry.',
+        icon: 'error'
+    })
+}finally {
         deleting.value = false
         showDeleteModal.value = false
     }
 }
 
 const printDetails = () => {
-    window.print()
+    const printWindow = window.open('', '_blank')
+    const now = new Date()
+
+    const printContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                /* RECEIPT-SPECIFIC STYLES FOR 80MM PAPER */
+                body {
+                    font-family: 'Courier New', monospace;
+                    font-size: 11px;
+                    width: 80mm;
+                    margin: 0 auto;
+                    padding: 5px;
+                    line-height: 1.2;
+                }
+
+                /* Center alignment for receipt */
+                .center {
+                    text-align: center;
+                }
+
+                /* Store header */
+                .store-header {
+                    font-weight: bold;
+                    margin-bottom: 5px;
+                    border-bottom: 1px dashed #000;
+                    padding-bottom: 5px;
+                }
+
+                .store-name {
+                    font-size: 14px;
+                    text-transform: uppercase;
+                }
+
+                .store-phone {
+                    font-size: 10px;
+                }
+
+                /* Receipt details */
+                .receipt-info {
+                    margin: 8px 0;
+                    font-size: 10px;
+                }
+
+                .receipt-info div {
+                    margin: 2px 0;
+                }
+
+                /* Items table - compact */
+                .items-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 8px 0;
+                    font-size: 10px;
+                }
+
+                .items-table th {
+                    text-align: left;
+                    border-bottom: 1px solid #000;
+                    padding: 3px 0;
+                }
+
+                .items-table td {
+                    padding: 2px 0;
+                    vertical-align: top;
+                }
+
+                .qty { width: 15%; }
+                .desc { width: 45%; }
+                .price { width: 20%; text-align: right; }
+                .total { width: 20%; text-align: right; }
+
+                /* Total section */
+                .total-section {
+                    border-top: 2px solid #000;
+                    margin-top: 10px;
+                    padding-top: 5px;
+                    font-weight: bold;
+                }
+
+                /* Footer */
+                .footer {
+                    font-size: 9px;
+                    margin-top: 15px;
+                    padding-top: 5px;
+                    border-top: 1px dashed #000;
+                }
+
+                /* Print optimization */
+                @media print {
+                    body {
+                        width: 80mm !important;
+                        margin: 0 !important;
+                        padding: 2mm !important;
+                    }
+
+                    @page {
+                        margin: 0;
+                        size: auto;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="center">
+                <!-- Store Header -->
+                <div class="store-header">
+                    <div class="store-name">SHAHZAIB ELECTRIC STORE</div>
+                    <div class="store-phone">📞 0308-8840832</div>
+                    <div style="font-size: 10px;">Lahore, Pakistan</div>
+                </div>
+
+                <!-- Receipt Type -->
+                <div style="margin: 5px 0; font-weight: bold;">
+                    ${formatStockType(stock.value.stock_type).toUpperCase()} RECEIPT
+                </div>
+
+                <!-- Receipt Details -->
+                <div class="receipt-info">
+                    <div>Ref: #${stock.value.id}</div>
+                    <div>Date: ${formatDate(stock.value.date)}</div>
+                    <div>Time: ${new Date(stock.value.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+
+                    ${stock.value.party_name ? `
+                    <div style="margin-top: 5px;">
+                        <div><strong>${stock.value.stock_type === 'sale' ? 'Customer' : 'Supplier'}:</strong></div>
+                        <div>${stock.value.party_name}</div>
+                        ${stock.value.party_phone ? `<div>Phone: ${stock.value.party_phone}</div>` : ''}
+                    </div>
+                    ` : ''}
+                </div>
+
+                <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;">
+
+                <!-- Items Table -->
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th class="desc">Product</th>
+                            <th class="qty">Qty</th>
+                            <th class="price">Price</th>
+                            <th class="total">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${stock.value.items ? stock.value.items.map((item, index) => `
+                        <tr>
+                            <td class="desc">
+                                ${item.product?.name || 'Product'}
+                            </td>
+                            <td class="qty">${item.quantity}</td>
+                            <td class="price">${formatCurrency(item.unit_price)}</td>
+                            <td class="total">${formatCurrency(item.total_price)}</td>
+                        </tr>
+                        `).join('') : ''}
+                    </tbody>
+                </table>
+
+                <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;">
+
+                <!-- Total -->
+                <div class="total-section">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>TOTAL:</span>
+                        <span>PKR ${formatCurrency(stock.value.net_price)}</span>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="footer">
+                    <div>Printed: ${now.toLocaleDateString()} ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                    <div style="margin-top: 5px;">Thank you for your business!</div>
+                    <div style="font-size: 8px; margin-top: 3px;">
+                        *Goods once sold are not returnable*
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+    `
+
+    printWindow.document.write(printContent)
+    printWindow.document.close()
+
+    // Small delay for rendering then print
+    setTimeout(() => {
+        printWindow.focus()
+        printWindow.print()
+        printWindow.close()
+    }, 200)
 }
 
 // Lifecycle

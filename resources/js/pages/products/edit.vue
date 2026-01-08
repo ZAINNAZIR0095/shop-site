@@ -204,6 +204,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import axios from 'axios'
+import Swal from 'sweetalert2'
 
 // CoreUI Components
 import {
@@ -335,24 +336,65 @@ const submitForm = async () => {
       successMessage.value = 'Product updated (check response)'
       showSuccessModal.value = true
     }
-  } catch (error) {
+  }catch (error) {
     console.error('Update API Error:', error)
     console.error('Error Response:', error.response?.data)
 
-    if (error.response && error.response.status === 422) {
-      errors.value = error.response.data.errors || {}
-      console.log('Please fix the validation errors above.')
-    } else if (error.response && error.response.status === 404) {
-      console.log('Product not found. It may have been deleted.')
-      router.push({ name: 'products' })
-    } else if (error.response && error.response.status === 500) {
-      console.log('Server error. Please check Laravel logs.')
-    } else {
-      console.log(`An error occurred: ${error.message}`)
+    const errorMessage =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        ''
+
+    //  Integrity constraint (duplicate / foreign key / unique issue)
+    if (errorMessage.toLowerCase().includes('integrity constraint')) {
+        Swal.fire({
+            title: 'Operation Failed',
+            text: 'This record cannot be saved because a product with same name is existed.',
+            icon: 'error'
+        })
+        return
     }
-  } finally {
+
+    // 🟡 Validation error
+    if (error.response && error.response.status === 422) {
+        errors.value = error.response.data.errors || {}
+
+        Swal.fire({
+            title: 'Validation Error',
+            text: 'Please fix the highlighted validation errors.',
+            icon: 'warning'
+        })
+
+    // 🔵 Not found
+    } else if (error.response && error.response.status === 404) {
+        Swal.fire({
+            title: 'Not Found',
+            text: 'Product not found. It may have been deleted.',
+            icon: 'info'
+        }).then(() => {
+            router.push({ name: 'products' })
+        })
+
+    // 🔴 Server error
+    } else if (error.response && error.response.status === 500) {
+        Swal.fire({
+            title: 'Server Error',
+            text: 'A server error occurred. Please try again later.',
+            icon: 'error'
+        })
+
+    // ⚪ Fallback
+    } else {
+        Swal.fire({
+            title: 'Error',
+            text: `An error occurred: ${errorMessage}`,
+            icon: 'error'
+        })
+    }
+} finally {
     saving.value = false
-  }
+}
 }
 
 const goBack = () => {

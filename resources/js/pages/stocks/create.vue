@@ -298,7 +298,7 @@
                                                 <div class="d-flex align-items-center justify-content-center">
                                                     <span class="mx-2">{{ item.quantity }}</span>
                                                     <small class="text-muted">{{ getProductUnit(item.product_id)
-                                                    }}</small>
+                                                        }}</small>
                                                 </div>
                                             </td>
                                             <td class="text-center align-middle">
@@ -477,6 +477,7 @@
 import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import Swal from 'sweetalert2'
 
 const router = useRouter()
 
@@ -565,8 +566,9 @@ const totalAmount = computed(() => {
 // Methods
 const fetchProducts = async () => {
     try {
-        const response = await axios.get('/products')
-        availableProducts.value = response.data.data
+        const response = await axios.get('/active-products')
+        console.log('products data', response.data)
+        availableProducts.value = response.data
     } catch (error) {
         console.error('Error fetching products:', error)
     }
@@ -693,7 +695,11 @@ const addOrUpdateProduct = () => {
 
     const qty = Number(editQuantity.value)
     if (isNaN(qty) || qty < 1) {
-        alert('Please enter a valid quantity')
+        Swal.fire({
+            title: 'Invalid Quantity',
+            text: 'Please enter a valid quantity',
+            icon: 'warning'
+        })
         return
     }
 
@@ -764,7 +770,11 @@ const selectParty = (party) => {
 
 const createNewParty = () => {
     // In a real app, you might open a modal to create new party
-    alert(`Create new ${form.stock_type === 'sale' ? 'customer' : 'supplier'} functionality would go here`)
+    Swal.fire({
+        title: 'Coming Soon',
+        text: `Create new ${form.stock_type === 'sale' ? 'customer' : 'supplier'} functionality would go here`,
+        icon: 'info'
+    })
 }
 
 // Helper methods
@@ -851,7 +861,11 @@ const submitForm = async () => {
     }
 
     if (form.items.length === 0) {
-        alert('Please add at least one product')
+        Swal.fire({
+            title: 'No Products Added',
+            text: 'Please add at least one product',
+            icon: 'warning'
+        })
         submitting.value = false
         return
     }
@@ -883,7 +897,11 @@ const submitForm = async () => {
         if (error.response?.status === 422) {
             errors.value = error.response.data.errors || {}
         } else {
-            alert('An error occurred. Please try again.')
+            Swal.fire({
+                title: 'Error',
+                text: 'An error occurred. Please try again.',
+                icon: 'error'
+            })
             console.error('Error:', error)
         }
     } finally {
@@ -891,8 +909,16 @@ const submitForm = async () => {
     }
 }
 
-const resetForm = () => {
-    if (confirm('Are you sure you want to reset the form? All data will be lost.')) {
+const resetForm = async() => {
+     const result = await Swal.fire({
+        title: 'Reset Form?',
+        text: 'All data will be lost. Are you sure?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes, reset it',
+        cancelButtonText: 'Cancel'
+    })
+    if (result.isConfirmed) {
         form.stock_type = 'purchase'
         form.date = new Date().toISOString().split('T')[0]
         form.description = ''
@@ -906,130 +932,269 @@ const resetForm = () => {
         searchQuery.value = ''
         errors.value = {}
         saveAsDraftFlag.value = false
+
+        Swal.fire({
+            title: 'Form Reset',
+            text: 'All data has been cleared.',
+            icon: 'success',
+            timer: 1500,
+            showConfirmButton: false
+        })
     }
 }
 
 
 const printReceipt = () => {
-    if (!createdStock.value) return
+    // Pre-format all values
+    const formattedDate = new Date(form.date).toLocaleDateString('en-PK')
+    const formattedTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    const formattedSubtotal = formatCurrency(subtotal.value)
+    const formattedDiscount = formatCurrency(discount.value)
+    const formattedTax = formatCurrency(taxAmount.value)
+    const formattedTotal = formatCurrency(totalAmount.value)
 
-    const printWindow = window.open('', '_blank', 'width=800,height=600')
-
+    // Generate items HTML - SINGLE LINE PER ROW
     const itemsHtml = form.items.map((item, index) => {
         const product = availableProducts.value.find(p => p.id == item.product_id)
-        const productName = product ? product.name : 'Unknown'
+        const productName = product ? product.name : 'Unknown Product'
         const unitPrice = getUnitPrice(item.product_id)
+        const total = item.total || (item.quantity * unitPrice)
 
-        return `
-            <tr>
-                <td class="text-center">${index + 1}</td>
-                <td>${productName}<br><small>${product?.sku || ''}</small></td>
-                <td class="text-center">${item.quantity} ${product?.unit || ''}</td>
-                <td class="text-end">PKR ${formatCurrency(unitPrice)}</td>
-                <td class="text-end">PKR ${formatCurrency(item.total)}</td>
-            </tr>
-        `
+        // Don't display unit, trim name
+        let displayName = productName.trim()
+        if (displayName.length > 18) {
+            displayName = displayName.substring(0, 15) + '...'
+        }
+
+        // Single line HTML with NO extra whitespace
+        return `<tr><td class="col-desc">${displayName}</td><td class="col-qty">${item.quantity}</td><td class="col-price">${formatCurrency(unitPrice)}</td><td class="col-total">${formatCurrency(total)}</td></tr>`
     }).join('')
 
-    const billHtml = `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock ${form.stock_type.toUpperCase()} - ${createdStock.value.reference_no}</title>
-    <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #f9f9f9; }
-        .bill-container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border: 1px solid #ddd; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-        .header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #4CAF51; }
-        .header h1 { margin: 0; color: #1e3a8a; font-size: 28px; }
-        .header p { margin: 5px 0; color: #555; }
-        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
-        .info-box { background: #f8f9fa; padding: 15px; border-radius: 8px; }
-        .info-box strong { color: #1e3a8a; }
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
-        th { background: #f1f5f9; font-weight: 600; color: #1e40af; }
-        .text-center { text-align: center; }
-        .text-end { text-align: right; }
-        .total-row { font-size: 18px; font-weight: bold; background: #e0f2fe !important; }
-        .footer { margin-top: 50px; text-align: center; color: #666; font-size: 14px; }
-        @media print {
-            body { padding: 10px; background: white; }
-            .bill-container { box-shadow: none; border: none; }
-            .no-print { display: none; }
-        }
-    </style>
-</head>
-<body onload="window.print(); window.close()">
-    <div class="bill-container">
-        <div class="header">
-            <h1>${form.stock_type === 'sale' ? 'SALES' : 'PURCHASE'} INVOICE</h1>
-            <p><strong>Reference No:</strong> ${createdStock.value.reference_no}</p>
-            <p>Date: ${new Date(createdStock.value.date || form.date).toLocaleDateString('en-PK')}</p>
-        </div>
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) {
+        Swal.fire({
+            title: 'Popup Blocked',
+            text: 'Please allow popups for printing',
+            icon: 'warning'
+        })
+        return
+    }
 
-        <div class="info-grid">
-            <div class="info-box">
-                <p><strong>${form.stock_type === 'sale' ? 'Customer' : 'Supplier'}:</strong> ${form.party_name}</p>
-                ${form.party_phone ? `<p><strong>Phone:</strong> ${form.party_phone}</p>` : ''}
-                ${form.party_address ? `<p><strong>Address:</strong> ${form.party_address}</p>` : ''}
-                ${form.party_email ? `<p><strong>Email:</strong> ${form.party_email}</p>` : ''}
+    const printContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                /* RECEIPT-SPECIFIC STYLES FOR 80MM PAPER */
+                body {
+                    font-family: 'Courier New', monospace;
+                    font-size: 11px;
+                    width: 80mm;
+                    margin: 0 auto;
+                    padding: 5px;
+                    line-height: 1.2;
+                }
+
+                .center { text-align: center; }
+
+                .store-header {
+                    font-weight: bold;
+                    margin-bottom: 5px;
+                    border-bottom: 1px dashed #000;
+                    padding-bottom: 5px;
+                }
+
+                .store-name {
+                    font-size: 14px;
+                    text-transform: uppercase;
+                }
+
+                .store-phone { font-size: 10px; }
+                .receipt-info { margin: 8px 0; font-size: 10px; }
+                .receipt-info div { margin: 2px 0; }
+
+                /* PERFECTLY ALIGNED TABLE */
+                .items-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 8px 0;
+                    font-size: 10px;
+                    table-layout: fixed; /* CRITICAL */
+                }
+
+                /* FIXED COLUMN WIDTHS (total 80mm = 226px approx) */
+                .items-table th.col-qty,
+                .items-table td.col-qty {
+                    width: 40px;        /* 15% */
+                    text-align: left;
+                    padding-left: 0;
+                }
+
+                .items-table th.col-desc,
+                .items-table td.col-desc {
+                    width: 106px;       /* 47% */
+                    text-align: left;
+                    padding: 0 2px;
+                    word-wrap: break-word;
+                    overflow-wrap: break-word;
+                }
+
+                .items-table th.col-price,
+                .items-table td.col-price {
+                    width: 40px;        /* 18% */
+                    text-align: right;
+                    padding-right: 5px;
+                }
+
+                .items-table th.col-total,
+                .items-table td.col-total {
+                    width: 40px;        /* 18% */
+                    text-align: right;
+                    padding-right: 0;
+                }
+
+                .items-table th {
+                    border-bottom: 2px solid #000;
+                    padding: 4px 0;
+                    font-weight: bold;
+                }
+
+                .items-table td {
+                    padding: 3px 0;
+                    vertical-align: top;
+                    border-bottom: 1px solid #eee;
+                }
+
+                /* Total section */
+                .total-section {
+                    border-top: 2px solid #000;
+                    margin-top: 10px;
+                    padding-top: 5px;
+                }
+
+                .total-row {
+                    display: flex;
+                    justify-content: space-between;
+                    margin: 2px 0;
+                }
+
+                .grand-total {
+                    font-size: 12px;
+                    font-weight: bold;
+                    border-top: 2px solid #000;
+                    margin-top: 5px;
+                    padding-top: 5px;
+                }
+
+                /* Footer */
+                .footer {
+                    font-size: 9px;
+                    margin-top: 15px;
+                    padding-top: 5px;
+                    border-top: 1px dashed #000;
+                }
+
+                /* Print optimization */
+                @media print {
+                    body {
+                        width: 80mm !important;
+                        margin: 0 !important;
+                        padding: 2mm !important;
+                    }
+
+                    @page {
+                        margin: 0;
+                        size: auto;
+                    }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="center">
+                <!-- Store Header -->
+                <div class="store-header">
+                    <div class="store-name">SHAHZAIB ELECTRIC STORE</div>
+                    <div class="store-phone">📞 0308-8840832</div>
+                    <div style="font-size: 10px;">Lahore, Pakistan</div>
+                </div>
+
+                <!-- Receipt Type -->
+                <div style="margin: 5px 0; font-weight: bold;">
+                    ${form.stock_type.toUpperCase()} RECEIPT
+                </div>
+
+                <!-- Receipt Details -->
+                <div class="receipt-info">
+                    <div>Date: ${formattedDate}</div>
+                    <div>Time: ${formattedTime}</div>
+                    ${form.party_name ? `
+                    <div style="margin-top: 5px;">
+                        <div><strong>${form.stock_type === 'sale' ? 'Customer' : 'Supplier'}:</strong></div>
+                        <div>${form.party_name}</div>
+                        ${form.party_phone ? `<div>Phone: ${form.party_phone}</div>` : ''}
+                    </div>
+                    ` : ''}
+                </div>
+
+                <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;">
+
+                <!-- Items Table -->
+                <div style="font-weight: bold; margin: 5px 0;">ITEMS (${form.items.length})</div>
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th class="col-desc">Product</th>
+                            <th class="col-qty">Qty</th>
+                            <th class="col-price">Price</th>
+                            <th class="col-total">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHtml}
+                    </tbody>
+                </table>
+
+                <hr style="border: none; border-top: 1px dashed #000; margin: 8px 0;">
+
+                <!-- Totals Section -->
+                <div class="total-section">
+                    <div class="total-row">
+                        <span>Subtotal:</span>
+                        <span>PKR ${formattedSubtotal}</span>
+                    </div>
+                    ${discount.value > 0 ? `<div class="total-row"><span>Discount:</span><span>PKR ${formattedDiscount}</span></div>` : ''}
+                    ${taxAmount.value > 0 ? `<div class="total-row"><span>Tax (13%):</span><span>PKR ${formattedTax}</span></div>` : ''}
+                    <div class="total-row grand-total">
+                        <span>NET TOTAL:</span>
+                        <span>PKR ${formattedTotal}</span>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="footer">
+                    <div>Printed: ${new Date().toLocaleDateString()} ${formattedTime}</div>
+                    <div style="margin-top: 5px;">Thank you for your business!</div>
+                    <div style="font-size: 8px; margin-top: 3px;">*Goods once sold are not returnable*</div>
+                    <div style="font-size: 8px; margin-top: 3px; color: #999;">[This is a preview - Not a valid receipt]</div>
+                </div>
             </div>
-            <div class="info-box">
-                <p><strong>Transaction Type:</strong> ${form.stock_type.charAt(0).toUpperCase() + form.stock_type.slice(1)}</p>
-                <p><strong>Total Items:</strong> ${form.items.length}</p>
-                <p><strong>Created On:</strong> ${new Date().toLocaleString('en-PK')}</p>
-            </div>
-        </div>
-
-        <table>
-            <thead>
-                <tr>
-                    <th class="text-center">#</th>
-                    <th>Product</th>
-                    <th class="text-center">Qty</th>
-                    <th class="text-end">Unit Price</th>
-                    <th class="text-end">Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${itemsHtml}
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="3" class="text-end"><strong>Subtotal:</strong></td>
-                    <td colspan="2" class="text-end">PKR ${formatCurrency(subtotal.value)}</td>
-                </tr>
-                ${discount.value > 0 ? `
-                <tr>
-                    <td colspan="3" class="text-end"><strong>Discount:</strong></td>
-                    <td colspan="2" class="text-end">PKR ${formatCurrency(discount.value)}</td>
-                </tr>` : ''}
-                <tr>
-                    <td colspan="3" class="text-end"><strong>Tax (13%):</strong></td>
-                    <td colspan="2" class="text-end">PKR ${formatCurrency(taxAmount.value)}</td>
-                </tr>
-                <tr class="total-row">
-                    <td colspan="3" class="text-end"><strong>Net Total:</strong></td>
-                    <td colspan="2" class="text-end text-primary"><strong>PKR ${formatCurrency(totalAmount.value)}</strong></td>
-                </tr>
-            </tfoot>
-        </table>
-
-        <div class="footer">
-            <p>Thank you for your business!</p>
-            <p>Printed on: ${new Date().toLocaleString('en-PK')}</p>
-        </div>
-    </div>
-</body>
-</html>
+        </body>
+        </html>
     `
 
-    printWindow.document.write(billHtml)
+    printWindow.document.write(printContent)
     printWindow.document.close()
-}
 
+    // Auto-print
+    setTimeout(() => {
+        if (!printWindow.closed) {
+            printWindow.focus()
+            printWindow.print()
+            printWindow.close()
+        }
+    }, 200)
+}
 
 const goBack = () => {
     router.back()

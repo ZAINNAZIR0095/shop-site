@@ -244,6 +244,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
+import Swal from 'sweetalert2'
 
 // CoreUI Components
 import {
@@ -479,8 +480,13 @@ const submitForm = async () => {
                 }
             }, 100)
         } else {
-            alert('An error occurred. Please try again.')
-            console.error('Error:', error)
+Swal.fire({
+    title: 'Error',
+    text: 'An error occurred. Please try again.',
+    icon: 'error'
+})
+
+console.error('Error:', error)
         }
     } finally {
         submitting.value = false

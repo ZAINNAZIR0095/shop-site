@@ -4,8 +4,8 @@
             <CCardHeader class="d-flex justify-content-between align-items-center">
                 <strong>Products List</strong>
                 <router-link to="/products-create" class=" text-white">
-                <CButton color="primary" :to="{ name: 'products.create' }">
-                    <CIcon  :icon="cilSpeedometer" />
+                    <CButton color="primary" :to="{ name: 'products.create' }">
+                        <CIcon :icon="cilSpeedometer" />
                         add product
                     </CButton>
                 </router-link>
@@ -20,14 +20,6 @@
                                 <CIcon name="cil-search" />
                             </CInputGroupText>
                         </CInputGroup>
-                    </div>
-                    <div class="col-md-3">
-                        <CFormSelect v-model="filters.type" @change="fetchProducts">
-                            <option value="">All Types</option>
-                            <option value="physical">Physical</option>
-                            <option value="digital">Digital</option>
-                            <option value="service">Service</option>
-                        </CFormSelect>
                     </div>
                 </div>
 
@@ -80,9 +72,12 @@
 
                                         </router-link>
                                     </CButton>
-                                    <CButton color="danger" size="sm" @click="confirmDelete(product)">
-                                        <CIcon name="cil-trash" />
+                                    <CButton :color="product.status === 'active' ? 'warning' : 'success'" size="sm"
+                                        @click="confirmToggleStatus(product)">
+                                        <CIcon :icon="product.status === 'active' ? cilBan : cilCheckCircle" />
+                                        {{ product.status === 'active' ? 'Disable' : 'Enable' }}
                                     </CButton>
+
                                 </CButtonGroup>
                             </CTableDataCell>
                         </CTableRow>
@@ -147,6 +142,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import axios from 'axios'
 import debounce from 'lodash/debounce'
+import Swal from 'sweetalert2'
 
 // CoreUI Components
 import {
@@ -158,6 +154,7 @@ import {
     CModal, CModalHeader, CModalTitle, CModalBody, CModalFooter
 } from '@coreui/vue'
 import { cilSpeedometer } from '@coreui/icons'
+import { cilBan, cilCheckCircle } from '@coreui/icons'
 
 import { cilPlus, cilPencil, cilTrash, cilInbox } from '@coreui/icons'
 import { cilSearch } from '@coreui/icons'
@@ -185,7 +182,8 @@ const fetchProducts = async (page = 1) => {
         }
 
         const response = await axios.get('/products', { params })
-        products.value = response.data.data
+        console.log(response.data)
+        products.value = response.data.data || [];
         meta.value = response.data.meta
         links.value = response.data.links
     } catch (error) {
@@ -231,23 +229,54 @@ const getTypeColor = (type) => {
     return colors[type] || 'secondary'
 }
 
-// Delete product
-const confirmDelete = (product) => {
-    productToDelete.value = product
-    showDeleteModal.value = true
+const toggleStatus = async (product) => {
+    const newStatus = product.status === 'active' ? 'inactive' : 'active'
+    console.log(newStatus)
+    try {
+        const response = await axios.put(`/products/${product.id}/status`, { status: newStatus })
+        if (response.data.success) {
+            console.log(response.data)
+            // Find the index of the product in the array
+            const index = products.value.findIndex(p => p.id === product.id)
+            if (index !== -1) {
+                // Reassign the entire product object (or just status) to trigger reactivity
+                products.value[index].status = newStatus
+                // OR even better: replace the whole object
+                // products.value[index] = { ...products.value[index], status: newStatus }
+            }
+            Swal.fire({
+                title: 'Success',
+                text: `Product ${newStatus === 'active' ? 'enabled' : 'disabled'} successfully!`,
+                icon: 'success'
+            })
+
+        }
+    } catch (error) {
+        console.error('Error toggling status:', error)
+
+        Swal.fire({
+            title: 'Update Failed',
+            text: 'Failed to update product status',
+            icon: 'error'
+        })
+    }
 }
 
-const deleteProduct = async () => {
-    deleting.value = true
-    try {
-        await axios.delete(`/products/${productToDelete.value.id}`)
-        console.log(meta.value)
-        fetchProducts(1)
-        showDeleteModal.value = false
-    } catch (error) {
-        console.error('Error deleting product:', error)
-    } finally {
-        deleting.value = false
+
+const confirmToggleStatus = async (product) => {
+    const action = product.status === 'active' ? 'disable' : 'enable'
+    const result = await Swal.fire({
+        title: 'Are you sure?',
+        text: `Are you sure you want to ${action} this product?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes',
+        cancelButtonText: 'Cancel'
+    })
+
+    const confirmed = result.isConfirmed
+    if (confirmed) {
+        toggleStatus(product)
     }
 }
 
