@@ -33,16 +33,6 @@
                     <CIcon name="cil-dollar" />
                     <span>Sale</span>
                 </CButton>
-                <CButton :color="form.stock_type === 'issue' ? 'warning' : 'light'"
-                    class="px-4 py-3 d-flex align-items-center gap-2" @click="setTransactionType('issue')">
-                    <CIcon name="cil-transfer" />
-                    <span>Issue</span>
-                </CButton>
-                <CButton :color="form.stock_type === 'return' ? 'danger' : 'light'"
-                    class="px-4 py-3 d-flex align-items-center gap-2" @click="setTransactionType('return')">
-                    <CIcon name="cil-loop" />
-                    <span>Return</span>
-                </CButton>
             </div>
         </div>
 
@@ -591,15 +581,6 @@ const validateQuantity = () => {
         return false
     }
 
-    // Stock validation for sales/issue
-    if (form.stock_type === 'sale' || form.stock_type === 'issue') {
-        const availableStock = selectedProduct.value.current_stock || 0
-        if (qty > availableStock && !isEditingExisting.value) {
-            quantityError.value = `Insufficient stock. Available: ${availableStock}`
-            return false
-        }
-    }
-
     return true
 }
 
@@ -784,7 +765,7 @@ const getStockBadgeClass = (item) => {
 
     if (!item.product_id) return 'bg-secondary'
 
-    if (form.stock_type === 'sale' || form.stock_type === 'issue') {
+    if (form.stock_type === 'sale') {
         if (quantity > currentStock) return 'bg-danger'
     }
 

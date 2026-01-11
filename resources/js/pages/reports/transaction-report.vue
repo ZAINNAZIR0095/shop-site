@@ -285,7 +285,7 @@ const pagination = reactive({
     from: 0,
     to: 0,
     total: 0,
-    per_page: 25
+    per_page: 500000
 })
 
 // Filters - Fixed parameter names (common backend expectations)

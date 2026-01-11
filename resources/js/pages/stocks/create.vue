@@ -59,9 +59,9 @@
                                 <CFormInput v-model="form.party_name"
                                     :placeholder="form.stock_type === 'sale' ? 'Enter customer name' : 'Enter supplier name'"
                                     :invalid="errors.party_name" @input="clearError('party_name')" />
-                                <CButton color="light" @click="showPartySearch = true" title="Search">
+                                <!-- <CButton color="light" @click="showPartySearch = true" title="Search">
                                     <CIcon name="cil-search" />
-                                </CButton>
+                                </CButton> -->
                             </CInputGroup>
                             <CFormFeedback v-if="errors.party_name" invalid>
                                 {{ errors.party_name[0] }}

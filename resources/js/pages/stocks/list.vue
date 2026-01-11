@@ -102,6 +102,7 @@
                         <CTable hover responsive class="mb-0">
                             <CTableHead>
                                 <CTableRow>
+                                    <CTableHeaderCell>#invoice</CTableHeaderCell>
                                     <CTableHeaderCell>Date</CTableHeaderCell>
                                     <CTableHeaderCell>Type</CTableHeaderCell>
                                     <CTableHeaderCell>Party Name</CTableHeaderCell>
@@ -114,6 +115,10 @@
                             </CTableHead>
                             <CTableBody>
                                 <CTableRow v-for="stock in stocks" :key="stock.id">
+                                    <!-- Date -->
+                                    <CTableDataCell>
+                                        {{ stock.id }}
+                                    </CTableDataCell>
                                     <!-- Date -->
                                     <CTableDataCell>
                                         {{ formatDate(stock.date) }}

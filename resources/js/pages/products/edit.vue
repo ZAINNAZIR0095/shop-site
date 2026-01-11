@@ -39,6 +39,21 @@
               {{ errors.name[0] }}
             </CFormFeedback>
           </div>
+          <!-- model_no Field -->
+          <div class="mb-3">
+            <CFormLabel for="model_no">Model No<span class="text-danger">*</span></CFormLabel>
+            <CFormInput
+              id="model_no"
+              v-model="form.model_no"
+              type="text"
+              placeholder="Enter Model No"
+              :invalid="errors.model_no"
+              @input="clearError('model_no')"
+            />
+            <CFormFeedback invalid v-if="errors.model_no">
+              {{ errors.model_no[0] }}
+            </CFormFeedback>
+          </div>
 
           <!-- Type Field -->
           <div class="mb-3">
@@ -232,6 +247,7 @@ const originalData = reactive({})
 // Form data
 const form = reactive({
   name: '',
+  model_no: '',
   type: '',
   unit: '',
   size: '',

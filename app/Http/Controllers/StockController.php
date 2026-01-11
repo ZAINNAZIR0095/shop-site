@@ -14,8 +14,8 @@ class StockController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Stock::with(['user', 'details.product'])
-            ->latest();
+        $query = Stock::with(['user', 'details.product']);
+$query->orderByDesc('id');
 
         if ($request->has('stock_type')) {
             $query->where('stock_type', $request->stock_type);

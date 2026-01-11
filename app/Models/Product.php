@@ -17,7 +17,8 @@ class Product extends Model
         'min_limit',
         'sale_price',
         'purchase_price',
-        'status'
+        'status',
+        'model_no',
         // Removed: current_stock
     ];
 

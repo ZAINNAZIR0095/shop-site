@@ -17,6 +17,7 @@ import transactionReport from "../pages/reports/transaction-report.vue";
 import login from "../pages/auth/login.vue";
 
 import { useAuthStore } from "../stores/authStore";
+import customersList from "../pages/customers/list.vue";
 
 const routes = [
   // Auth Routes
@@ -48,6 +49,11 @@ const routes = [
         path: "products-list",
         name: "products",
         component: list,
+      },
+      {
+        path: "customers-list",
+        name: "customers",
+        component: customersList,
       },
       {
         path: "products-create",
@@ -125,6 +131,18 @@ router.beforeEach(async (to, from, next) => {
   if (to.matched.some((record) => record.meta.requiresGuest)) {
     if (authStore.isAuthenticated) {
       return next("/");
+    }
+  }
+
+    const auth = useAuthStore()
+
+  if (auth.user?.email === 'staff@ims.com') {
+    // Only allow stock-related routes
+    const allowedRoutes = ['stocks', 'stocks.create', 'stocks.edit', 'stocks.show']
+
+    if (!allowedRoutes.includes(to.name)) {
+      // Redirect to stocks list if user tries to access other pages
+      return next({ name: 'stocks' })
     }
   }
 

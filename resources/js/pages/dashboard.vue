@@ -6,7 +6,7 @@
             <CCardBody>
                 <CRow class="align-items-center">
                     <CCol :md="8">
-                        <h1 class="display-6 mb-2">Welcome back, {{ name }}! 👋</h1>
+                        <h1 class="display-6 mb-2">Welcome back, {{ authStore.currentUser?.name || 'User' }}! 👋</h1>
                         <p class="mb-0">Here's what's happening with your inventory today.</p>
                         <div class="mt-2">
                             <CBadge  class="me-2">
@@ -340,6 +340,8 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import Chart from 'chart.js/auto'
+import { useAuthStore } from '@/stores/authStore'
+
 
 // CoreUI Icons
 import {
@@ -377,6 +379,7 @@ const profitData = ref([])
 const stockOverview = ref([])
 const lowStockProducts = ref([])
 const recentActivities = ref([])
+const authStore = useAuthStore()
 
 // Chart references
 const profitChart = ref(null)
@@ -406,7 +409,7 @@ const fetchDashboardData = async () => {
         if (lowStockRes.data.success) lowStockProducts.value = lowStockRes.data.data
         if (activitiesRes.data.success) recentActivities.value = activitiesRes.data.data
 
-        console.log(lowStockRes.data)
+        console.log(stats.value)
 
 
         // Set user name from stats or localStorage
@@ -425,6 +428,16 @@ const fetchDashboardData = async () => {
         setTimeout(initializeCharts, 100)
     }
 }
+
+const userInitials = computed(() => {
+  if (!authStore.currentUser?.name) return 'U'
+  return authStore.currentUser.name
+    .split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase()
+    .substring(0, 2)
+})
 
 const navigateTo = (path) => {
     router.push(path)

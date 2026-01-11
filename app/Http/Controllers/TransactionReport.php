@@ -98,7 +98,7 @@ class TransactionReport extends Controller
             }
 
             // Get paginated results
-            $perPage = $request->get('per_page', 25);
+            $perPage = 500000;
             $transactions = $query->paginate($perPage);
 
             // Transform the data for response

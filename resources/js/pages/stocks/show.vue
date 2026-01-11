@@ -25,9 +25,12 @@
                         </span>
                     </div>
                     <div>
-                        <CButton color="warning" size="sm" :to="{ name: 'stocks.edit', params: { id: stock.id } }" class="me-2">
-                            <CIcon name="cil-pencil" /> Edit
-                        </CButton>
+                        <router-link :to="{ name: 'stocks.edit', params: { id: stock.id } }">
+                            <CButton color="warning" size="sm" class="me-2">
+                                <CIcon name="cil-pencil" /> Edit
+                            </CButton>
+                        </router-link>
+
                         <CButton color="secondary" size="sm" @click="goBack">
                             <CIcon name="cil-arrow-left" /> Back
                         </CButton>
@@ -54,7 +57,8 @@
                     </CRow>
 
                     <!-- Party Information -->
-                    <div v-if="stock.party_name || stock.party_phone || stock.party_address" class="mt-3 pt-3 border-top">
+                    <div v-if="stock.party_name || stock.party_phone || stock.party_address"
+                        class="mt-3 pt-3 border-top">
                         <h6>{{ stock.stock_type === 'sale' ? 'Customer' : 'Supplier' }} Information</h6>
                         <CRow>
                             <CCol :md="4" class="mb-2">
@@ -126,7 +130,8 @@
                                     </CTableDataCell>
                                     <CTableDataCell>
                                         <strong class="text-primary">
-                                            PKR {{ formatCurrency(item.total_price || (item.quantity * item.unit_price)) }}
+                                            PKR {{ formatCurrency(item.total_price || (item.quantity * item.unit_price))
+                                            }}
                                         </strong>
                                     </CTableDataCell>
                                 </CTableRow>
@@ -255,7 +260,7 @@ const fetchStock = async () => {
         error.value = ''
 
         const response = await axios.get(`/stocks/${route.params.id}`)
-console.log(response)
+        console.log(response)
         if (response.data.success) {
             stock.value = response.data.data
         } else {
@@ -337,33 +342,33 @@ const deleteStock = async () => {
 
         const response = await axios.delete(`/stocks/${route.params.id}`)
 
-       if (response.data.success) {
-    // Show success message
-    Swal.fire({
-        title: 'Deleted!',
-        text: 'Stock entry deleted successfully!',
-        icon: 'success'
-    }).then(() => {
-        // Redirect to stocks list
-        router.push({ name: 'stocks' })
-    })
-} else {
-    Swal.fire({
-        title: 'Delete Failed',
-        text: response.data.message || 'Failed to delete stock entry',
-        icon: 'error'
-    })
-}
+        if (response.data.success) {
+            // Show success message
+            Swal.fire({
+                title: 'Deleted!',
+                text: 'Stock entry deleted successfully!',
+                icon: 'success'
+            }).then(() => {
+                // Redirect to stocks list
+                router.push({ name: 'stocks' })
+            })
+        } else {
+            Swal.fire({
+                title: 'Delete Failed',
+                text: response.data.message || 'Failed to delete stock entry',
+                icon: 'error'
+            })
+        }
 
-} catch (err) {
-    console.error('Error deleting stock:', err)
+    } catch (err) {
+        console.error('Error deleting stock:', err)
 
-    Swal.fire({
-        title: 'Error',
-        text: 'An error occurred while deleting the stock entry.',
-        icon: 'error'
-    })
-}finally {
+        Swal.fire({
+            title: 'Error',
+            text: 'An error occurred while deleting the stock entry.',
+            icon: 'error'
+        })
+    } finally {
         deleting.value = false
         showDeleteModal.value = false
     }
@@ -494,7 +499,7 @@ const printDetails = () => {
                 <div class="receipt-info">
                     <div>Ref: #${stock.value.id}</div>
                     <div>Date: ${formatDate(stock.value.date)}</div>
-                    <div>Time: ${new Date(stock.value.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                    <div>Time: ${new Date(stock.value.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
 
                     ${stock.value.party_name ? `
                     <div style="margin-top: 5px;">
@@ -543,7 +548,7 @@ const printDetails = () => {
 
                 <!-- Footer -->
                 <div class="footer">
-                    <div>Printed: ${now.toLocaleDateString()} ${now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                    <div>Printed: ${now.toLocaleDateString()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                     <div style="margin-top: 5px;">Thank you for your business!</div>
                     <div style="font-size: 8px; margin-top: 3px;">
                         *Goods once sold are not returnable*
@@ -585,6 +590,7 @@ onMounted(() => {
 
 /* Print styles */
 @media print {
+
     .breadcrumb,
     .btn,
     .modal {

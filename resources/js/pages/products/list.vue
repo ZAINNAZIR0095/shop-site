@@ -15,7 +15,7 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <CInputGroup>
-                            <CFormInput v-model="search" placeholder="Search products..." @input="debouncedSearch" />
+                            <CFormInput v-model="searchTerm" placeholder="Search products..." />
                             <CInputGroupText>
                                 <CIcon name="cil-search" />
                             </CInputGroupText>
@@ -33,6 +33,7 @@
                     <CTableHead>
                         <CTableRow>
                             <CTableHeaderCell>Name</CTableHeaderCell>
+                            <CTableHeaderCell>Model No</CTableHeaderCell>
                             <CTableHeaderCell>Type</CTableHeaderCell>
                             <CTableHeaderCell>Unit/Size</CTableHeaderCell>
                             <CTableHeaderCell>Min Limit</CTableHeaderCell>
@@ -42,8 +43,9 @@
                         </CTableRow>
                     </CTableHead>
                     <CTableBody>
-                        <CTableRow v-for="product in products" :key="product.id">
+                        <CTableRow v-for="product in paginatedProducts" :key="product.id">
                             <CTableDataCell>{{ product.name }}</CTableDataCell>
+                            <CTableDataCell>{{ product.model_no || '' }}</CTableDataCell>
                             <CTableDataCell>
                                 <CBadge :color="getTypeColor(product.type)">
                                     {{ product.type }}
@@ -65,19 +67,17 @@
                             </CTableDataCell>
                             <CTableDataCell>
                                 <CButtonGroup>
-                                    <CButton color="info" size="sm"
-                                        :to="{ name: 'products.edit', params: { id: product.id } }">
-                                        <router-link :to="{ name: 'products.edit', params: { id: product.id } }">
+                                    <router-link :to="{ name: 'products.edit', params: { id: product.id } }"
+                                        style="text-decoration: none;">
+                                        <CButton color="info" size="sm">
                                             <CIcon name="cil-pencil" />
-
-                                        </router-link>
-                                    </CButton>
+                                        </CButton>
+                                    </router-link>
                                     <CButton :color="product.status === 'active' ? 'warning' : 'success'" size="sm"
                                         @click="confirmToggleStatus(product)">
                                         <CIcon :icon="product.status === 'active' ? cilBan : cilCheckCircle" />
                                         {{ product.status === 'active' ? 'Disable' : 'Enable' }}
                                     </CButton>
-
                                 </CButtonGroup>
                             </CTableDataCell>
                         </CTableRow>
@@ -85,26 +85,26 @@
                 </CTable>
 
                 <!-- Pagination -->
-                <div v-if="meta" class="d-flex justify-content-between align-items-center mt-3">
+                <div v-if="allProducts.length > 0" class="d-flex justify-content-between align-items-center mt-3">
                     <div>
-                        Showing {{ meta.from }} to {{ meta.to }} of {{ meta.total }} entries
+                        Showing {{ startIndex + 1 }} to {{ endIndex }} of {{ filteredProducts.length }} entries
                     </div>
                     <CPagination>
-                        <CPaginationItem :disabled="!links.prev" @click="fetchProducts(meta.current_page - 1)">
+                        <CPaginationItem :disabled="currentPage === 1" @click="changePage(currentPage - 1)">
                             Previous
                         </CPaginationItem>
-                        <CPaginationItem v-for="page in pages" :key="page" :active="page === meta.current_page"
-                            @click="fetchProducts(page)">
+                        <CPaginationItem v-for="page in pages" :key="page" :active="page === currentPage"
+                            @click="changePage(page)">
                             {{ page }}
                         </CPaginationItem>
-                        <CPaginationItem :disabled="!links.next" @click="fetchProducts(meta.current_page + 1)">
+                        <CPaginationItem :disabled="currentPage === totalPages" @click="changePage(currentPage + 1)">
                             Next
                         </CPaginationItem>
                     </CPagination>
                 </div>
 
                 <!-- Empty State -->
-                <div v-if="!loading && products.length === 0" class="text-center py-5">
+                <div v-if="!loading && allProducts.length === 0" class="text-center py-5">
                     <CIcon name="cil-inbox" size="3xl" class="text-muted mb-3" />
                     <h5>No products found</h5>
                     <p>Get started by creating your first product</p>
@@ -117,31 +117,12 @@
                 </div>
             </CCardBody>
         </CCard>
-
-        <!-- Delete Confirmation Modal -->
-        <CModal :visible="showDeleteModal" @close="showDeleteModal = false">
-            <CModalHeader>
-                <CModalTitle>Confirm Delete</CModalTitle>
-            </CModalHeader>
-            <CModalBody>
-                Are you sure you want to delete product "<strong>{{ productToDelete?.name }}</strong>"?
-                This action cannot be undone.
-            </CModalBody>
-            <CModalFooter>
-                <CButton color="secondary" @click="showDeleteModal = false">Cancel</CButton>
-                <CButton color="danger" @click="deleteProduct" :disabled="deleting">
-                    <CSpinner v-if="deleting" component="span" size="sm" />
-                    {{ deleting ? 'Deleting...' : 'Delete' }}
-                </CButton>
-            </CModalFooter>
-        </CModal>
     </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import axios from 'axios'
-import debounce from 'lodash/debounce'
 import Swal from 'sweetalert2'
 
 // CoreUI Components
@@ -155,37 +136,26 @@ import {
 } from '@coreui/vue'
 import { cilSpeedometer } from '@coreui/icons'
 import { cilBan, cilCheckCircle } from '@coreui/icons'
-
-import { cilPlus, cilPencil, cilTrash, cilInbox } from '@coreui/icons'
+import { cilPencil, cilInbox } from '@coreui/icons'
 import { cilSearch } from '@coreui/icons'
 
-const products = ref([])
+const allProducts = ref([]) // Store all loaded products
 const loading = ref(true)
-const search = ref('')
+const searchTerm = ref('')
 const filters = reactive({
     type: ''
 })
-const meta = ref(null)
-const links = ref({})
-const showDeleteModal = ref(false)
-const productToDelete = ref(null)
-const deleting = ref(false)
 
-// Fetch products
-const fetchProducts = async (page = 1) => {
+// Pagination variables
+const itemsPerPage = 10
+const currentPage = ref(1)
+
+// Fetch all products once
+const fetchAllProducts = async () => {
     loading.value = true
     try {
-        const params = {
-            page,
-            search: search.value,
-            type: filters.type
-        }
-
-        const response = await axios.get('/products', { params })
-        console.log(response.data)
-        products.value = response.data.data || [];
-        meta.value = response.data.meta
-        links.value = response.data.links
+        const response = await axios.get('/products')
+        allProducts.value = response.data.data || []
     } catch (error) {
         console.error('Error fetching products:', error)
     } finally {
@@ -193,33 +163,72 @@ const fetchProducts = async (page = 1) => {
     }
 }
 
-// Debounced search
-const debouncedSearch = debounce(() => {
-    fetchProducts()
-}, 500)
+// Computed: Filter products based on search term
+const filteredProducts = computed(() => {
+    if (!searchTerm.value && !filters.type) {
+        return allProducts.value
+    }
 
-// Pagination pages
+    return allProducts.value.filter(product => {
+        const matchesSearch = !searchTerm.value ||
+            product.name.toLowerCase().includes(searchTerm.value.toLowerCase()) ||
+            (product.unit && product.unit.toLowerCase().includes(searchTerm.value.toLowerCase())) ||
+            (product.type && product.type.toLowerCase().includes(searchTerm.value.toLowerCase()))
+
+        const matchesType = !filters.type || product.type === filters.type
+
+        return matchesSearch && matchesType
+    })
+})
+
+// Computed: Paginated products
+const paginatedProducts = computed(() => {
+    const start = (currentPage.value - 1) * itemsPerPage
+    const end = start + itemsPerPage
+    return filteredProducts.value.slice(start, end)
+})
+
+// Computed: Pagination info
+const totalPages = computed(() => {
+    return Math.ceil(filteredProducts.value.length / itemsPerPage)
+})
+
+const startIndex = computed(() => {
+    return (currentPage.value - 1) * itemsPerPage
+})
+
+const endIndex = computed(() => {
+    const end = startIndex.value + itemsPerPage
+    return end > filteredProducts.value.length ? filteredProducts.value.length : end
+})
+
 const pages = computed(() => {
-    if (!meta.value) return []
-    const current = meta.value.current_page
-    const last = meta.value.last_page
+    const total = totalPages.value
+    const current = currentPage.value
     const delta = 2
     const range = []
 
-    for (let i = Math.max(2, current - delta); i <= Math.min(last - 1, current + delta); i++) {
+    for (let i = Math.max(2, current - delta); i <= Math.min(total - 1, current + delta); i++) {
         range.push(i)
     }
 
     if (current - delta > 2) range.unshift('...')
-    if (current + delta < last - 1) range.push('...')
+    if (current + delta < total - 1) range.push('...')
 
     range.unshift(1)
-    if (last > 1) range.push(last)
+    if (total > 1) range.push(total)
 
     return range
 })
 
-// Type color
+// Methods
+const changePage = (page) => {
+    if (page === '...') return
+    if (page >= 1 && page <= totalPages.value) {
+        currentPage.value = page
+    }
+}
+
 const getTypeColor = (type) => {
     const colors = {
         physical: 'primary',
@@ -231,29 +240,23 @@ const getTypeColor = (type) => {
 
 const toggleStatus = async (product) => {
     const newStatus = product.status === 'active' ? 'inactive' : 'active'
-    console.log(newStatus)
     try {
         const response = await axios.put(`/products/${product.id}/status`, { status: newStatus })
         if (response.data.success) {
-            console.log(response.data)
-            // Find the index of the product in the array
-            const index = products.value.findIndex(p => p.id === product.id)
+            // Update the product status in the local array
+            const index = allProducts.value.findIndex(p => p.id === product.id)
             if (index !== -1) {
-                // Reassign the entire product object (or just status) to trigger reactivity
-                products.value[index].status = newStatus
-                // OR even better: replace the whole object
-                // products.value[index] = { ...products.value[index], status: newStatus }
+                allProducts.value[index].status = newStatus
             }
+
             Swal.fire({
                 title: 'Success',
                 text: `Product ${newStatus === 'active' ? 'enabled' : 'disabled'} successfully!`,
                 icon: 'success'
             })
-
         }
     } catch (error) {
         console.error('Error toggling status:', error)
-
         Swal.fire({
             title: 'Update Failed',
             text: 'Failed to update product status',
@@ -261,7 +264,6 @@ const toggleStatus = async (product) => {
         })
     }
 }
-
 
 const confirmToggleStatus = async (product) => {
     const action = product.status === 'active' ? 'disable' : 'enable'
@@ -274,14 +276,18 @@ const confirmToggleStatus = async (product) => {
         cancelButtonText: 'Cancel'
     })
 
-    const confirmed = result.isConfirmed
-    if (confirmed) {
+    if (result.isConfirmed) {
         toggleStatus(product)
     }
 }
 
+// Watch for search/filter changes and reset to page 1
+watch([searchTerm, () => filters.type], () => {
+    currentPage.value = 1
+})
+
 // Lifecycle
 onMounted(() => {
-    fetchProducts()
+    fetchAllProducts()
 })
 </script>
