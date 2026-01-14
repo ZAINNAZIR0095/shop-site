@@ -50,22 +50,39 @@
                     </CCardHeader>
                     <CCardBody>
                         <!-- Basic Info -->
+                        <!-- In the Customer/Supplier Card, replace or modify the party selection section -->
                         <div class="mb-3">
                             <CFormLabel class="fw-semibold">
                                 {{ form.stock_type === 'sale' ? 'Customer' : 'Supplier' }} Name
                                 <span class="text-danger">*</span>
                             </CFormLabel>
                             <CInputGroup>
-                                <CFormInput v-model="form.party_name"
-                                    :placeholder="form.stock_type === 'sale' ? 'Enter customer name' : 'Enter supplier name'"
-                                    :invalid="errors.party_name" @input="clearError('party_name')" />
-                                <!-- <CButton color="light" @click="showPartySearch = true" title="Search">
+                                <VAutocomplete v-model="form.party_name" :items="parties" item-title="name"
+                                    item-value="name" :label="form.stock_type === 'sale' ? 'Customer' : 'Supplier'"
+                                    :placeholder="form.stock_type === 'sale' ? 'Select customer' : 'Select supplier'"
+                                    :error="!!errors.party_name" :error-messages="errors.party_name" clearable
+                                    @update:modelValue="handlePartyChange" />
+                                <CButton color="light" @click="showPartySearch = true" title="Search">
                                     <CIcon name="cil-search" />
-                                </CButton> -->
+                                </CButton>
                             </CInputGroup>
                             <CFormFeedback v-if="errors.party_name" invalid>
                                 {{ errors.party_name[0] }}
                             </CFormFeedback>
+
+                            <!-- Show balance information -->
+                            <div v-if="selectedParty" class="mt-2">
+                                <div class="d-flex justify-content-between small text-muted">
+                                    <span>Previous Balance:</span>
+                                    <span :class="getBalanceClass(previousBalance)">
+                                        PKR {{ formatCurrency(Math.abs(previousBalance)) }}
+                                        <span v-if="previousBalance !== 0">
+                                            ({{ previousBalance > 0 ? 'Owes' : 'Credit' }})
+                                        </span>
+                                    </span>
+                                </div>
+
+                            </div>
                         </div>
 
                         <!-- Date -->
@@ -538,6 +555,22 @@ const filteredProducts = computed(() => {
     return searchResults.value.length > 0 ? searchResults.value : availableProducts.value.slice(0, 10)
 })
 
+const selectedParty = computed(() => {
+    if (parties.value.length > 0 && form.party_name) {
+        return parties.value.find(
+            party => party.name === form.party_name
+        ) || null
+    }
+    return null
+})
+
+const previousBalance = computed(() => {
+    if (selectedParty.value) {
+        return selectedParty.value.current_balance || 0
+    }
+    return 0
+})
+
 const filteredParties = computed(() => {
     if (!partySearchQuery.value) return parties.value.slice(0, 10)
     return parties.value.filter(party =>
@@ -560,7 +593,14 @@ const taxAmount = computed(() => {
 })
 
 const totalAmount = computed(() => {
-    return subtotal.value - discount.value + taxAmount.value
+    const subtotalValue = subtotal.value - discount.value + taxAmount.value
+
+    // For sales: customer owes (add to their balance)
+    // For purchases: we owe supplier (add to their balance)
+    if (form.stock_type === 'sale') {
+        return subtotalValue
+    }
+    return subtotalValue
 })
 
 // Methods
@@ -573,13 +613,41 @@ const fetchProducts = async () => {
         console.error('Error fetching products:', error)
     }
 }
+const handlePartyChange = (partyName) => {
+    form.party_name = partyName
+
+    // Find and populate party details
+    if (partyName) {
+        const party = parties.value.find(p => p.name === partyName)
+        if (party) {
+            form.party_phone = party.phone || ''
+            form.party_address = party.address || ''
+            form.party_email = party.email || ''
+        }
+    } else {
+        // Clear party details if no party selected
+        form.party_phone = ''
+        form.party_address = ''
+        form.party_email = ''
+    }
+
+    // Clear any existing errors
+    clearError('party_name')
+}
+
+const getBalanceClass = (balance) => {
+    if (balance > 0) return 'text-danger' // Owes money
+    if (balance < 0) return 'text-success' // Has credit/we owe them
+    return 'text-muted'
+}
 
 const fetchParties = async () => {
     try {
         // This would be your API endpoint for customers/suppliers
         const endpoint = form.stock_type === 'sale' ? '/customers' : '/suppliers'
         const response = await axios.get(endpoint)
-        parties.value = response.data.data || []
+        console.log('customers', response.data.data.data)
+        parties.value = response.data.data.data || []
     } catch (error) {
         console.error('Error fetching parties:', error)
     }
@@ -766,6 +834,9 @@ const selectParty = (party) => {
     form.party_address = party.address || ''
     form.party_email = party.email || ''
     showPartySearch.value = false
+
+    // Clear search query
+    partySearchQuery.value = ''
 }
 
 const createNewParty = () => {
@@ -907,10 +978,24 @@ const submitForm = async () => {
     } finally {
         submitting.value = false
     }
+
+    // In the submitForm method, after creating the stock record:
+    if (form.stock_type === 'sale' && selectedParty.value) {
+        // Update customer balance
+        try {
+            await axios.post(`/customers/${selectedParty.value.id}/update-balance`, {
+                amount: totalAmount.value,
+                type: 'sale',
+                stock_id: response.data.data.id
+            })
+        } catch (error) {
+            console.error('Failed to update customer balance:', error)
+        }
+    }
 }
 
-const resetForm = async() => {
-     const result = await Swal.fire({
+const resetForm = async () => {
+    const result = await Swal.fire({
         title: 'Reset Form?',
         text: 'All data will be lost. Are you sure?',
         icon: 'warning',
@@ -1170,6 +1255,13 @@ const printReceipt = () => {
                         <span>PKR ${formattedTotal}</span>
                     </div>
                 </div>
+
+${selectedParty.value && form.stock_type === 'sale' ? `
+<div style="margin-top: 5px;">
+    <div><strong>Previous Balance:</strong> PKR ${formatCurrency(previousBalance)}</div>
+    <div><strong>New Balance:</strong> PKR ${formatCurrency(previousBalance + totalAmount.value)}</div>
+</div>
+` : ''}
 
                 <!-- Footer -->
                 <div class="footer">

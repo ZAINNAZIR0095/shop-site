@@ -25,11 +25,8 @@
                             <CInputGroupText>
                                 <CIcon name="cil-search" />
                             </CInputGroupText>
-                            <CFormInput
-                                v-model="filters.search"
-                                placeholder="Search by name, phone, or CNIC..."
-                                @keyup.enter="fetchCustomers"
-                            />
+                            <CFormInput v-model="filters.search" placeholder="Search by name, phone, or CNIC..."
+                                @keyup.enter="fetchCustomers" />
                             <CButton color="light" @click="fetchCustomers">
                                 Search
                             </CButton>
@@ -120,15 +117,19 @@
                                 <td class="text-center align-middle">
                                     <div class="btn-group btn-group-sm">
                                         <CButton color="light" size="sm" @click="viewDetails(customer)">
-                                            <CIcon name="cil-eye" />
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                                                fill="currentColor" class="bi bi-eye" viewBox="0 0 16 16">
+                                                <path
+                                                    d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z" />
+                                                <path
+                                                    d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0" />
+                                            </svg> <!-- OR Method 2: Using name prop -->
                                         </CButton>
                                         <CButton color="light" size="sm" @click="editCustomer(customer)">
                                             <CIcon name="cil-pencil" />
                                         </CButton>
-                                        <CButton v-if="customer.current_balance != 0"
-                                                color="light"
-                                                size="sm"
-                                                @click="openPaymentModal(customer)">
+                                        <CButton v-if="customer.current_balance != 0" color="light" size="sm"
+                                            @click="openPaymentModal(customer)">
                                             <CIcon name="cil-money" />
                                         </CButton>
                                         <CButton color="light" size="sm" @click="confirmDelete(customer)">
@@ -213,7 +214,7 @@
                     <div class="col-md-6">
                         <CFormLabel>CNIC</CFormLabel>
                         <CFormInput v-model="customerForm.cnic" placeholder="xxxxx-xxxxxxx-x"
-                                   :invalid="formErrors?.cnic" />
+                            :invalid="formErrors?.cnic" />
                         <CFormFeedback v-if="formErrors?.cnic" invalid>
                             {{ formErrors.cnic[0] }}
                         </CFormFeedback>
@@ -231,7 +232,8 @@
                         <CFormLabel>Opening Balance</CFormLabel>
                         <CInputGroup>
                             <CInputGroupText>PKR</CInputGroupText>
-                            <CFormInput type="number" v-model.number="customerForm.opening_balance" min="0" step="0.01" />
+                            <CFormInput type="number" v-model.number="customerForm.opening_balance" min="0"
+                                step="0.01" />
                         </CInputGroup>
                         <small class="text-muted">Initial balance when adding customer</small>
                     </div>
@@ -240,9 +242,9 @@
                         <CFormLabel>Status</CFormLabel>
                         <div class="mt-2">
                             <CFormCheck inline label="Active" :checked="customerForm.is_active"
-                                       @change="customerForm.is_active = true" />
+                                @change="customerForm.is_active = true" />
                             <CFormCheck inline label="Inactive" :checked="!customerForm.is_active"
-                                       @change="customerForm.is_active = false" />
+                                @change="customerForm.is_active = false" />
                         </div>
                     </div>
 
@@ -332,15 +334,18 @@
                             <div class="row text-center">
                                 <div class="col">
                                     <small class="text-muted d-block">Opening Balance</small>
-                                    <h5 class="mb-0">PKR {{ formatCurrency(selectedCustomer.opening_balance || 0) }}</h5>
+                                    <h5 class="mb-0">PKR {{ formatCurrency(selectedCustomer.opening_balance || 0) }}
+                                    </h5>
                                 </div>
                                 <div class="col">
                                     <small class="text-muted d-block">Total Sales</small>
-                                    <h5 class="mb-0 text-danger">PKR {{ formatCurrency(balanceSummary.total_debit || 0) }}</h5>
+                                    <h5 class="mb-0 text-danger">PKR {{ formatCurrency(balanceSummary.total_debit || 0)
+                                    }}</h5>
                                 </div>
                                 <div class="col">
                                     <small class="text-muted d-block">Total Payments</small>
-                                    <h5 class="mb-0 text-success">PKR {{ formatCurrency(balanceSummary.total_credit || 0) }}</h5>
+                                    <h5 class="mb-0 text-success">PKR {{ formatCurrency(balanceSummary.total_credit ||
+                                        0) }}</h5>
                                 </div>
                                 <div class="col">
                                     <small class="text-muted d-block">Current Balance</small>
@@ -374,7 +379,8 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <tr v-for="transaction in selectedCustomer.transactions.slice(0, 10)" :key="transaction.id">
+                                                <tr v-for="transaction in selectedCustomer.transactions.slice(0, 10)"
+                                                    :key="transaction.id">
                                                     <td>{{ formatDate(transaction.date) }}</td>
                                                     <td>
                                                         <CBadge :color="getTransactionTypeColor(transaction.type)">
@@ -423,7 +429,8 @@
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                <tr v-for="transaction in customerTransactions.data" :key="transaction.id">
+                                                <tr v-for="transaction in customerTransactions.data"
+                                                    :key="transaction.id">
                                                     <td>{{ formatDate(transaction.date) }}</td>
                                                     <td>
                                                         <CBadge :color="getTransactionTypeColor(transaction.type)">
@@ -431,7 +438,8 @@
                                                         </CBadge>
                                                     </td>
                                                     <td>
-                                                        <small class="text-muted">{{ transaction.reference_no || 'N/A' }}</small>
+                                                        <small class="text-muted">{{ transaction.reference_no || 'N/A'
+                                                        }}</small>
                                                     </td>
                                                     <td>{{ transaction.description }}</td>
                                                     <td class="text-end text-danger">
@@ -454,9 +462,8 @@
                                     <div class="d-flex justify-content-center mt-3">
                                         <CPagination v-if="customerTransactions.last_page > 1">
                                             <CPaginationItem @click="changeTransactionPage(page)"
-                                                           v-for="page in customerTransactions.last_page"
-                                                           :key="page"
-                                                           :active="page === customerTransactions.current_page">
+                                                v-for="page in customerTransactions.last_page" :key="page"
+                                                :active="page === customerTransactions.current_page">
                                                 {{ page }}
                                             </CPaginationItem>
                                         </CPagination>
@@ -510,7 +517,7 @@
                             <CInputGroup>
                                 <CInputGroupText>PKR</CInputGroupText>
                                 <CFormInput type="number" v-model.number="paymentForm.amount"
-                                           :max="Math.abs(selectedCustomer.current_balance)" min="1" step="0.01" />
+                                    :max="Math.abs(selectedCustomer.current_balance)" min="1" step="0.01" />
                             </CInputGroup>
                             <small class="text-muted">
                                 Maximum: PKR {{ formatCurrency(Math.abs(selectedCustomer.current_balance)) }}
@@ -530,7 +537,8 @@
                         </div>
                         <div class="col-md-6">
                             <CFormLabel>Reference Number</CFormLabel>
-                            <CFormInput v-model="paymentForm.reference_no" placeholder="Check #, Transaction ID, etc." />
+                            <CFormInput v-model="paymentForm.reference_no"
+                                placeholder="Check #, Transaction ID, etc." />
                         </div>
                         <div class="col-md-6">
                             <CFormLabel>Notes</CFormLabel>
@@ -554,6 +562,9 @@
 import { ref, reactive, onMounted } from 'vue'
 import axios from 'axios'
 import Swal from 'sweetalert2'
+import { cibEyeem } from '@coreui/icons'
+import * as icons from '@coreui/icons'
+
 
 // State
 const customers = ref({
@@ -565,6 +576,8 @@ const customers = ref({
     from: 0,
     to: 0
 })
+
+const loading = ref(false);
 
 const filters = reactive({
     search: '',
@@ -607,6 +620,7 @@ const paymentForm = reactive({
 
 // Methods
 const fetchCustomers = async (page = 1) => {
+    loading.value = true;
     try {
         const params = {
             page: page,
@@ -614,9 +628,11 @@ const fetchCustomers = async (page = 1) => {
             ...filters
         }
 
-        const response = await axios.get('/customers', { params })
+        const response = await axios.get('/customers', { params });
         customers.value = response.data.data
+        loading.value = false;
     } catch (error) {
+        loading.value = false;
         console.error('Error fetching customers:', error)
         Swal.fire({
             title: 'Error',
@@ -921,7 +937,8 @@ onMounted(() => {
     border: 1px solid #dee2e6 !important;
 }
 
-.table td, .table th {
+.table td,
+.table th {
     vertical-align: middle;
 }
 
@@ -935,7 +952,8 @@ onMounted(() => {
 }
 
 /* Transaction table styling */
-.table-sm td, .table-sm th {
+.table-sm td,
+.table-sm th {
     padding: 0.5rem;
 }
 

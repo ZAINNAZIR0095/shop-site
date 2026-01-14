@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Customer;
+use App\Models\CustomerTransaction;
 use App\Models\Stock;
 use App\Models\StockDetail;
 use App\Models\Product;
@@ -116,6 +118,31 @@ $query->orderByDesc('id');
             $stock->load(['details.product', 'user']);
 
             DB::commit();
+
+            // In the store method, after creating stock record:
+if ($request->stock_type === 'sale' && $request->party_name) {
+    // Find or create customer
+    $customer = Customer::firstOrCreate(
+        ['name' => $request->party_name],
+        ['phone' => $request->party_phone]
+    );
+
+    // Create customer transaction
+    CustomerTransaction::create([
+        'customer_id' => $customer->id,
+        'date' => $request->date,
+        'type' => 'sale',
+        'reference_no' => $stock->reference_no ?? 'STOCK-' . $stock->id,
+        'description' => 'Sale Transaction',
+        'debit' => $netPrice,
+        'balance' => $customer->current_balance + $netPrice,
+        'stock_id' => $stock->id
+    ]);
+
+    // Update customer balance
+    $customer->current_balance += $netPrice;
+    $customer->save();
+}
 
             return response()->json([
                 'success' => true,
