@@ -3,6 +3,7 @@
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\StockReportController;
+use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TransactionReport;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProductController;
@@ -65,7 +66,26 @@ Route::apiResource('customers', CustomerController::class);
 Route::get('customers/{id}/transactions', [CustomerController::class, 'getTransactions']);
 Route::get('customers/{id}/balance', [CustomerController::class, 'getBalance']);
 Route::post('customers/{id}/payments', [CustomerController::class, 'addPayment']);
+Route::put('/customers/payments/{payment}', [CustomerController::class, 'updatePayment']);
 Route::get('customer-search', [CustomerController::class, 'search']);
+
+// Suppliers routes
+// Supplier routes
+Route::prefix('suppliers')->group(function () {
+    Route::get('/', [SupplierController::class, 'index']);
+    Route::post('/', [SupplierController::class, 'store']);
+    Route::get('/search', [SupplierController::class, 'search']);
+    Route::get('/{id}', [SupplierController::class, 'show']);
+    Route::put('/{id}', [SupplierController::class, 'update']);
+    Route::delete('/{id}', [SupplierController::class, 'destroy']);
+
+    // Transactions and Payments
+    Route::get('/{id}/transactions', [SupplierController::class, 'getTransactions']);
+    Route::post('/{id}/payments', [SupplierController::class, 'addPayment']);
+    Route::post('/{id}/payments/update', [SupplierController::class, 'updatePayment']);
+    Route::get('/{id}/balance', [SupplierController::class, 'getBalance']);
+    Route::post('/{id}/update-balance', [SupplierController::class, 'updateBalance']);
+});
 
 
 // Products for dropdown with current stock

@@ -17,7 +17,7 @@ class StockController extends Controller
     public function index(Request $request)
     {
         $query = Stock::with(['user', 'details.product']);
-$query->orderByDesc('id');
+        $query->orderByDesc('id');
 
         if ($request->has('stock_type')) {
             $query->where('stock_type', $request->stock_type);
@@ -35,7 +35,7 @@ $query->orderByDesc('id');
         }
 
         if ($request->has('product_id')) {
-            $query->whereHas('details', function($q) use ($request) {
+            $query->whereHas('details', function ($q) use ($request) {
                 $q->where('product_id', $request->product_id);
             });
         }
@@ -120,29 +120,29 @@ $query->orderByDesc('id');
             DB::commit();
 
             // In the store method, after creating stock record:
-if ($request->stock_type === 'sale' && $request->party_name) {
-    // Find or create customer
-    $customer = Customer::firstOrCreate(
-        ['name' => $request->party_name],
-        ['phone' => $request->party_phone]
-    );
+            if ($request->stock_type === 'sale' && $request->party_name) {
+                // Find or create customer
+                $customer = Customer::firstOrCreate(
+                    ['name' => $request->party_name],
+                    ['phone' => $request->party_phone]
+                );
 
-    // Create customer transaction
-    CustomerTransaction::create([
-        'customer_id' => $customer->id,
-        'date' => $request->date,
-        'type' => 'sale',
-        'reference_no' => $stock->reference_no ?? 'STOCK-' . $stock->id,
-        'description' => 'Sale Transaction',
-        'debit' => $netPrice,
-        'balance' => $customer->current_balance + $netPrice,
-        'stock_id' => $stock->id
-    ]);
+                // Create customer transaction
+                CustomerTransaction::create([
+                    'customer_id' => $customer->id,
+                    'date' => $request->date,
+                    'type' => 'sale',
+                    'reference_no' => $stock->reference_no ?? 'STOCK-' . $stock->id,
+                    'description' => 'Sale Transaction',
+                    'debit' => $netPrice,
+                    'balance' => $customer->current_balance + $netPrice,
+                    'stock_id' => $stock->id
+                ]);
 
-    // Update customer balance
-    $customer->current_balance += $netPrice;
-    $customer->save();
-}
+                // Update customer balance
+                $customer->current_balance += $netPrice;
+                $customer->save();
+            }
 
             return response()->json([
                 'success' => true,
@@ -161,71 +161,71 @@ if ($request->stock_type === 'sale' && $request->party_name) {
     }
 
     private function formatStockResponse($stock)
-{
-    return [
-        'id' => $stock->id,
-        'reference_no' => $stock->reference_no ?? null,
-        'stock_type' => $stock->stock_type,
-        'date' => $stock->date,
-        'description' => $stock->description,
-        'party_name' => $stock->party_name,
-        'party_phone' => $stock->party_phone,
-        'party_address' => $stock->party_address,
-        'total_items' => $stock->details->count(),
-        'net_price' => $stock->net_price,
-        'created_at' => $stock->created_at,
-        'updated_at' => $stock->updated_at,
-        'items' => $stock->details->map(function ($detail) {
-            return [
-                'id' => $detail->id,
-                'product_id' => $detail->product_id,
-                'quantity' => $detail->quantity,
-                'unit_price' => $detail->unit_price,
-                'total_price' => $detail->total_price,
-                'product' => $detail->product ? [
-                    'id' => $detail->product->id,
-                    'name' => $detail->product->name,
-                    'unit' => $detail->product->unit,
-                    'sale_price' => $detail->product->sale_price,
-                    'purchase_price' => $detail->product->purchase_price,
-                ] : null
-            ];
-        })
-    ];
-}
-
-
-public function show($id)
-{
-    try {
-        $stock = Stock::with(['details', 'details.product'])->findOrFail($id);
-
-        return response()->json([
-            'success' => true,
-            'data' => $this->formatStockResponse($stock)
-        ]);
-
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Stock entry not found.',
-            'error' => $e->getMessage()
-        ], 404);
+    {
+        return [
+            'id' => $stock->id,
+            'reference_no' => $stock->reference_no ?? null,
+            'stock_type' => $stock->stock_type,
+            'date' => $stock->date,
+            'description' => $stock->description,
+            'party_name' => $stock->party_name,
+            'party_phone' => $stock->party_phone,
+            'party_address' => $stock->party_address,
+            'total_items' => $stock->details->count(),
+            'net_price' => $stock->net_price,
+            'created_at' => $stock->created_at,
+            'updated_at' => $stock->updated_at,
+            'items' => $stock->details->map(function ($detail) {
+                return [
+                    'id' => $detail->id,
+                    'product_id' => $detail->product_id,
+                    'quantity' => $detail->quantity,
+                    'unit_price' => $detail->unit_price,
+                    'total_price' => $detail->total_price,
+                    'product' => $detail->product ? [
+                        'id' => $detail->product->id,
+                        'name' => $detail->product->name,
+                        'unit' => $detail->product->unit,
+                        'sale_price' => $detail->product->sale_price,
+                        'purchase_price' => $detail->product->purchase_price,
+                    ] : null
+                ];
+            })
+        ];
     }
-}
 
-public function edit($id)
-{
-    try {
-        $stock = Stock::with(['details', 'details.product'])->findOrFail($id);
 
-        return view('stocks.edit', compact('stock'));
+    public function show($id)
+    {
+        try {
+            $stock = Stock::with(['details', 'details.product'])->findOrFail($id);
 
-    } catch (\Exception $e) {
-        return redirect()->route('stocks.index')
-            ->with('error', 'Stock entry not found.');
+            return response()->json([
+                'success' => true,
+                'data' => $this->formatStockResponse($stock)
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Stock entry not found.',
+                'error' => $e->getMessage()
+            ], 404);
+        }
     }
-}
+
+    public function edit($id)
+    {
+        try {
+            $stock = Stock::with(['details', 'details.product'])->findOrFail($id);
+
+            return view('stocks.edit', compact('stock'));
+
+        } catch (\Exception $e) {
+            return redirect()->route('stocks.index')
+                ->with('error', 'Stock entry not found.');
+        }
+    }
 
     public function update(Request $request, Stock $stock)
     {

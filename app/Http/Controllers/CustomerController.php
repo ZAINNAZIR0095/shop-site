@@ -310,6 +310,75 @@ class CustomerController extends Controller
         }
     }
 
+    public function updatePayment(Request $request, $paymentId)
+{
+    $validator = Validator::make($request->all(), [
+        'date'            => 'required|date',
+        'amount'          => 'required|numeric|min:1',
+        'payment_method'  => 'required|string|in:cash,bank_transfer,cheque,other',
+        'reference_no'    => 'nullable|string|max:100',
+        'notes'           => 'nullable|string'
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'errors'  => $validator->errors()
+        ], 422);
+    }
+
+    DB::beginTransaction();
+
+    try {
+        $payment = Payment::findOrFail($paymentId);
+        $customer = $payment->customer;
+
+        // Get old amount (to adjust balance correctly)
+        $oldAmount = $payment->amount;
+
+        // Update payment record
+        $payment->update([
+            'date'            => $request->date,
+            'amount'          => $request->amount,
+            'payment_method'  => $request->payment_method,
+            'reference_no'    => $request->reference_no,
+            'notes'           => $request->notes,
+        ]);
+
+        // Update related transaction
+        $transaction = CustomerTransaction::where('payment_id', $payment->id)->firstOrFail();
+
+        $transaction->update([
+            'date'          => $request->date,
+            'reference_no'  => $request->reference_no ?? 'PAY-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT),
+            'description'   => 'Payment - ' . ucfirst(str_replace('_', ' ', $request->payment_method)),
+            'credit'        => $request->amount,
+            'balance'       => $customer->current_balance - $request->amount + $oldAmount, // adjust for old amount
+            'payment_method'=> $request->payment_method,
+            'notes'         => $request->notes,
+        ]);
+
+        // Adjust customer balance: remove old credit, add new credit
+        $customer->current_balance = $customer->current_balance + $oldAmount - $request->amount;
+        $customer->save();
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment updated successfully',
+            'data'    => $payment
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to update payment',
+            'error'   => $e->getMessage()
+        ], 500);
+    }
+}
     public function getBalance($id)
     {
         try {

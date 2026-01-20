@@ -18,6 +18,8 @@ import login from "../pages/auth/login.vue";
 
 import { useAuthStore } from "../stores/authStore";
 import customersList from "../pages/customers/list.vue";
+import suppliersList from "../pages/suppliers/list.vue"
+import SupplierTransactions from "../pages/suppliers/transaction.vue"
 
 const routes = [
   // Auth Routes
@@ -55,6 +57,16 @@ const routes = [
         name: "customers",
         component: customersList,
       },
+      {
+        path: "suppliers-list",
+        name: "suppliers",
+        component: suppliersList,
+      },
+        {
+    path: '/suppliers/:id/transactions',
+    name: 'suppliers.transactions',
+    component: SupplierTransactions,
+  },
       {
         path: "products-create",
         name: "products.create",

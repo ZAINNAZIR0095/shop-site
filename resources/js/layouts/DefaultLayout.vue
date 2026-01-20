@@ -87,6 +87,15 @@
                                 </CNavLink>
                             </CNavItem>
 
+                            <CNavItem>
+                                <CNavLink :active="isActiveRoute('/suppliers-list')"
+                                    @click="navigateTo('/suppliers-list')" class="d-flex align-items-center  px-0"
+                                    :class="sidebarCollapsed ? 'px-0' : 'px-2'">
+                                    <CIcon custom-class-name="nav-icon me-2" :icon="cilPeople" />
+                                    <span>suppliers</span>
+                                </CNavLink>
+                            </CNavItem>
+
                         </CSidebarNav>
 
                         <!-- Sidebar Footer -->

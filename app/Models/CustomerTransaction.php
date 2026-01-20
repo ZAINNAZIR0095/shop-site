@@ -40,7 +40,6 @@ class CustomerTransaction extends Model
 
     public function payment()
     {
-        // return $this->belongsTo(Payment::class);
-        return null;
+        return $this->belongsTo(Payment::class);
     }
 }

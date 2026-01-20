@@ -924,12 +924,12 @@ const submitForm = async () => {
     submitting.value = true
     errors.value = {}
 
-    // Validation
-    if (!form.party_name.trim()) {
-        errors.value.party_name = ['This field is required']
-        submitting.value = false
-        return
-    }
+    // // Validation
+    // if (!form.party_name.trim()) {
+    //     errors.value.party_name = ['This field is required']
+    //     submitting.value = false
+    //     return
+    // }
 
     if (form.items.length === 0) {
         Swal.fire({
