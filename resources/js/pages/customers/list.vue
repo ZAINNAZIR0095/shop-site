@@ -114,7 +114,7 @@
                                         {{ customer.transactions_count }}
                                     </span>
                                 </td>
-                                <td class="text-center align-middle">
+                                <td class="text-start align-middle">
                                     <div class="btn-group btn-group-sm">
                                         <CButton color="light" size="sm" @click="viewDetails(customer)">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
@@ -132,9 +132,9 @@
                                             @click="openPaymentModal(customer)">
                                             <CIcon name="cil-money" />
                                         </CButton>
-                                        <CButton color="light" size="sm" @click="confirmDelete(customer)">
+                                        <!-- <CButton color="light" size="sm" @click="confirmDelete(customer)">
                                             <CIcon name="cil-trash" />
-                                        </CButton>
+                                        </CButton> -->
                                     </div>
                                 </td>
                             </tr>

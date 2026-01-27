@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
 use App\Models\CustomerTransaction;
+use App\Models\Payment;
 use App\Models\Stock;
 use App\Models\StockDetail;
 use App\Models\Product;
+use App\Models\Supplier;
+use App\Models\SupplierTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
@@ -48,117 +51,190 @@ class StockController extends Controller
         ]);
     }
 
-    public function store(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'date' => 'required|date',
-            'description' => 'nullable|string',
-            'stock_type' => 'required|in:sale,purchase,issue,return',
-            'party_name' => 'nullable|string|max:255',
-            'party_phone' => 'nullable|string|max:20',
-            'party_address' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1'
+   public function store(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'date' => 'required|date',
+        'description' => 'nullable|string',
+        'stock_type' => 'required|in:sale,purchase,issue,return',
+        'party_name' => 'nullable|string|max:255',
+        'party_phone' => 'nullable|string|max:20',
+        'party_address' => 'nullable|string',
+        'items' => 'required|array|min:1',
+        'items.*.product_id' => 'required|exists:products,id',
+        'items.*.quantity' => 'required|integer|min:1',
+
+        // Sale receive payment
+        'receive_payment' => 'nullable|array',
+        'receive_payment.amount' => 'nullable|numeric|min:0',
+        'receive_payment.payment_method' => 'nullable|in:cash,bank_transfer,cheque,other',
+        'receive_payment.reference_no' => 'nullable|string|max:100',
+        'receive_payment.notes' => 'nullable|string',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'errors' => $validator->errors()
+        ], 422);
+    }
+
+    DB::beginTransaction();
+
+    try {
+
+        /** 1️⃣ Create stock */
+        $stock = Stock::create([
+            'user_id' => auth()->id(),
+            'date' => $request->date,
+            'description' => $request->description,
+            'stock_type' => $request->stock_type,
+            'party_name' => $request->party_name,
+            'party_phone' => $request->party_phone,
+            'party_address' => $request->party_address
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
+        $netPrice = 0;
+
+        /** 2️⃣ Stock details */
+        foreach ($request->items as $item) {
+
+            $product = Product::findOrFail($item['product_id']);
+
+            $unitPrice = $request->stock_type === 'sale'
+                ? $product->sale_price
+                : $product->purchase_price;
+
+            $itemTotal = $item['quantity'] * $unitPrice;
+            $netPrice += $itemTotal;
+
+            StockDetail::create([
+                'stock_id' => $stock->id,
+                'product_id' => $item['product_id'],
+                'quantity' => $item['quantity'],
+                'unit_price' => $unitPrice
+            ]);
         }
 
-        DB::beginTransaction();
+        $stock->update(['net_price' => $netPrice]);
 
-        try {
-            // Create stock record
-            $stock = Stock::create([
-                'user_id' => auth()->id(),
+        /** ───────────── SALE ───────────── */
+        if ($request->stock_type === 'sale' && $request->party_name) {
+
+            $customer = Customer::firstOrCreate(
+                ['name' => $request->party_name],
+                [
+                    'phone' => $request->party_phone,
+                    'address' => $request->party_address,
+                    'current_balance' => 0
+                ]
+            );
+
+            /** Sale transaction (customer owes us) */
+            $newBalance = $customer->current_balance + $netPrice;
+
+            CustomerTransaction::create([
+                'customer_id' => $customer->id,
                 'date' => $request->date,
-                'description' => $request->description,
-                'stock_type' => $request->stock_type,
-                'party_name' => $request->party_name,
-                'party_phone' => $request->party_phone,
-                'party_address' => $request->party_address
+                'type' => 'sale',
+                'reference_no' => 'SAL-' . str_pad($stock->id, 6, '0', STR_PAD_LEFT),
+                'description' => 'Sale Transaction',
+                'debit' => $netPrice,
+                'credit' => 0,
+                'balance' => $newBalance,
+                'stock_id' => $stock->id
             ]);
 
-            $netPrice = 0;
+            $customer->current_balance = $newBalance;
 
-            // Create stock details
-            foreach ($request->items as $item) {
-                $product = Product::find($item['product_id']);
+            /** Receive payment (if any) */
+            $received = $request->receive_payment['amount'] ?? 0;
 
-                if (!$product) {
-                    throw new \Exception("Product not found: " . $item['product_id']);
-                }
+            if ($received > 0) {
 
-                // Determine unit price based on stock type
-                $unitPrice = $request->stock_type === 'sale'
-                    ? $product->sale_price
-                    : $product->purchase_price;
-
-                $itemTotal = $item['quantity'] * $unitPrice;
-                $netPrice += $itemTotal;
-
-                // Create stock detail
-                StockDetail::create([
-                    'stock_id' => $stock->id,
-                    'product_id' => $item['product_id'],
-                    'quantity' => $item['quantity'],
-                    'unit_price' => $unitPrice
+                $payment = Payment::create([
+                    'customer_id' => $customer->id,
+                    'date' => $request->date,
+                    'amount' => $received,
+                    'payment_method' => $request->receive_payment['payment_method'] ?? 'cash',
+                    'reference_no' => $request->receive_payment['reference_no'],
+                    'notes' => $request->receive_payment['notes'],
+                    'received_by' => auth()->id()
                 ]);
-            }
 
-            // Update net price
-            $stock->net_price = $netPrice;
-            $stock->save();
+                $newBalance -= $received;
 
-            // Load relationships for response
-            $stock->load(['details.product', 'user']);
-
-            DB::commit();
-
-            // In the store method, after creating stock record:
-            if ($request->stock_type === 'sale' && $request->party_name) {
-                // Find or create customer
-                $customer = Customer::firstOrCreate(
-                    ['name' => $request->party_name],
-                    ['phone' => $request->party_phone]
-                );
-
-                // Create customer transaction
                 CustomerTransaction::create([
                     'customer_id' => $customer->id,
                     'date' => $request->date,
-                    'type' => 'sale',
-                    'reference_no' => $stock->reference_no ?? 'STOCK-' . $stock->id,
-                    'description' => 'Sale Transaction',
-                    'debit' => $netPrice,
-                    'balance' => $customer->current_balance + $netPrice,
+                    'type' => 'payment',
+                    'reference_no' => $request->receive_payment['reference_no']
+                        ?? 'PAY-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT),
+                    'description' => 'Payment Received',
+                    'debit' => 0,
+                    'credit' => $received,
+                    'balance' => $newBalance,
+                    'payment_id' => $payment->id,
                     'stock_id' => $stock->id
                 ]);
 
-                // Update customer balance
-                $customer->current_balance += $netPrice;
-                $customer->save();
+                $customer->current_balance = $newBalance;
             }
 
-            return response()->json([
-                'success' => true,
-                'message' => ucfirst($request->stock_type) . ' created successfully',
-                'data' => $stock
-            ], 201);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create stock record',
-                'error' => $e->getMessage()
-            ], 500);
+            $customer->save();
         }
+
+        /** ───────────── PURCHASE ───────────── */
+        if ($request->stock_type === 'purchase' && $request->party_name) {
+
+            $supplier = Supplier::firstOrCreate(
+                ['name' => $request->party_name],
+                [
+                    'phone' => $request->party_phone,
+                    'address' => $request->party_address,
+                    'current_balance' => 0
+                ]
+            );
+
+            $newBalance = $supplier->current_balance + $netPrice;
+
+            SupplierTransaction::create([
+                'supplier_id' => $supplier->id,
+                'date' => $request->date,
+                'type' => 'purchase',
+                'reference_no' => 'PUR-' . str_pad($stock->id, 6, '0', STR_PAD_LEFT),
+                'description' => 'Purchase Transaction',
+                'debit' => 0,
+                'credit' => $netPrice,
+                'balance' => $newBalance,
+                'stock_id' => $stock->id
+            ]);
+
+            $supplier->current_balance = $newBalance;
+            $supplier->save();
+        }
+
+        DB::commit();
+
+        $stock->load(['details.product', 'user']);
+
+        return response()->json([
+            'success' => true,
+            'supplier_id' => $supplier->id ?? null,
+            'message' => ucfirst($request->stock_type) . ' created successfully',
+            'data' => $stock
+        ], 201);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to create stock record',
+            'error' => $e->getMessage()
+        ], 500);
     }
+}
+
 
     private function formatStockResponse($stock)
     {

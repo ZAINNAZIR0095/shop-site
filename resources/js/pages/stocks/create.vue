@@ -378,6 +378,65 @@
                     </CCardBody>
                 </CCard>
 
+                <!-- Receive Payment Card (only for Sales) -->
+<CCard v-if="form.stock_type === 'sale' && form.party_name !== ''" class="mt-4 shadow-sm">
+  <CCardHeader class="bg-light d-flex justify-content-between align-items-center">
+    <h6 class="mb-0 fw-semibold">
+      <CIcon name="cil-money" class="me-2 text-success" />
+      Receive Payment from Customer
+    </h6>
+  </CCardHeader>
+  <CCardBody>
+    <div class="row g-4">
+      <!-- Previous Balance -->
+      <div class="col-md-4">
+        <div class="border rounded p-3 text-center bg-light">
+          <small class="text-muted d-block mb-1">Previous Balance</small>
+          <h5 :class="getBalanceClass(previousBalance)">
+            PKR {{ formatCurrency(Math.abs(previousBalance)) }}
+          </h5>
+          <small class="d-block mt-1">
+            {{ previousBalance > 0 ? 'Customer Owes' : previousBalance < 0 ? 'You Owe Customer' : 'Zero Balance' }}
+          </small>
+        </div>
+      </div>
+
+      <!-- Receive Payment Input -->
+      <div class="col-md-4">
+        <CFormLabel class="fw-semibold">
+          Receive Payment Now
+        </CFormLabel>
+        <CInputGroup>
+          <CInputGroupText>PKR</CInputGroupText>
+          <CFormInput
+            type="number"
+            v-model.number="receivePayment.amount"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+          />
+        </CInputGroup>
+        <small class="text-muted d-block mt-1">
+          Max: PKR {{ formatCurrency(totalAmount) }}
+        </small>
+      </div>
+
+      <!-- Amount Due / New Balance -->
+      <div class="col-md-4">
+        <div class="border rounded p-3 text-center" :class="getAmountDueClass">
+          <small class="text-muted d-block mb-1">Amount Due / New Balance</small>
+          <h4 :class="getBalanceClass(amountDueAfterPayment)">
+            PKR {{ formatCurrency(Math.abs(amountDueAfterPayment)) }}
+          </h4>
+          <small class="d-block mt-1">
+            {{ amountDueAfterPayment > 0 ? 'Customer Still Owes' : amountDueAfterPayment < 0 ? 'Customer Has Credit' : 'Fully Paid' }}
+          </small>
+        </div>
+      </div>
+    </div>
+  </CCardBody>
+</CCard>
+
                 <!-- Actions Card -->
                 <CCard class="mt-4 shadow-sm">
                     <CCardBody>
@@ -441,6 +500,79 @@
                 <CButton color="primary" @click="createNewParty">Create New</CButton>
             </CModalFooter>
         </CModal>
+
+        <!-- Create New Customer/Supplier Modal -->
+<CModal :visible="showCreatePartyModal" @close="closeCreatePartyModal" size="lg">
+  <CModalHeader>
+    <CModalTitle>
+      <CIcon name="cil-plus" class="me-2" />
+      Create New {{ form.stock_type === 'sale' ? 'Customer' : 'Supplier' }}
+    </CModalTitle>
+  </CModalHeader>
+  <CModalBody>
+    <!-- Show general error -->
+    <div v-if="createPartyError" class="alert alert-danger">
+      {{ createPartyError }}
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <CFormLabel>
+          Name <span class="text-danger">*</span>
+        </CFormLabel>
+        <CFormInput v-model="createPartyForm.name" :invalid="createPartyErrors?.name" />
+        <CFormFeedback v-if="createPartyErrors?.name" invalid>
+          {{ createPartyErrors.name[0] }}
+        </CFormFeedback>
+      </div>
+
+      <div class="col-md-6">
+        <CFormLabel>Phone</CFormLabel>
+        <CFormInput v-model="createPartyForm.phone" :invalid="createPartyErrors?.phone" />
+        <CFormFeedback v-if="createPartyErrors?.phone" invalid>
+          {{ createPartyErrors.phone[0] }}
+        </CFormFeedback>
+      </div>
+
+      <div class="col-md-6">
+        <CFormLabel>Email</CFormLabel>
+        <CFormInput type="email" v-model="createPartyForm.email" :invalid="createPartyErrors?.email" />
+        <CFormFeedback v-if="createPartyErrors?.email" invalid>
+          {{ createPartyErrors.email[0] }}
+        </CFormFeedback>
+      </div>
+
+      <div class="col-md-6">
+        <CFormLabel>CNIC (Optional)</CFormLabel>
+        <CFormInput v-model="createPartyForm.cnic" placeholder="xxxxx-xxxxxxx-x"
+          :invalid="createPartyErrors?.cnic" />
+        <CFormFeedback v-if="createPartyErrors?.cnic" invalid>
+          {{ createPartyErrors.cnic[0] }}
+        </CFormFeedback>
+      </div>
+
+      <div class="col-12">
+        <CFormLabel>Address</CFormLabel>
+        <CTextarea v-model="createPartyForm.address" rows="2" :invalid="createPartyErrors?.address" />
+        <CFormFeedback v-if="createPartyErrors?.address" invalid>
+          {{ createPartyErrors.address[0] }}
+        </CFormFeedback>
+      </div>
+
+      <div class="col-12">
+        <CFormLabel>Notes</CFormLabel>
+        <CTextarea v-model="createPartyForm.notes" rows="2" placeholder="Additional notes..." />
+      </div>
+    </div>
+  </CModalBody>
+  <CModalFooter>
+    <CButton color="secondary" @click="closeCreatePartyModal">Cancel</CButton>
+    <CButton color="primary" @click="saveNewParty" :disabled="creatingParty">
+      <CSpinner v-if="creatingParty" component="span" size="sm" class="me-2" />
+      Create {{ form.stock_type === 'sale' ? 'Customer' : 'Supplier' }}
+    </CButton>
+  </CModalFooter>
+</CModal>
 
         <!-- Success Modal -->
         <CModal :visible="showSuccessModal" @close="handleModalClose">
@@ -537,6 +669,47 @@ const discount = ref(0)
 const successMessage = ref('')
 const createdStock = ref(null)
 
+// Create Party Modal State
+const showCreatePartyModal = ref(false)
+const createPartyForm = reactive({
+  name: '',
+  phone: '',
+  email: '',
+  cnic: '',
+  address: '',
+  notes: ''
+})
+const createPartyErrors = ref({})
+const createPartyError = ref('')
+const creatingParty = ref(false)
+
+// Receive Payment
+const receivePayment = reactive({
+  amount: 0,
+  method: 'cash',
+  reference_no: '',
+  notes: ''
+})
+
+// Computed: Amount due after receiving payment
+const amountDueAfterPayment = computed(() => {
+  const bill = totalAmount.value || 0
+  const received = receivePayment.amount || 0
+  const prevBalance = previousBalance.value || 0
+
+  // For sale: previous balance (positive = customer owes)
+  // After sale: customer owes prev + bill
+  // After receiving payment: customer owes (prev + bill - received)
+  return prevBalance + bill - received
+})
+
+// Class for amount due display
+const getAmountDueClass = computed(() => {
+  if (amountDueAfterPayment.value > 0) return 'bg-danger-subtle text-danger'
+  if (amountDueAfterPayment.value < 0) return 'bg-success-subtle text-success'
+  return 'bg-success-subtle text-success'
+})
+
 
 watch(editQuantity, (newVal) => {
     console.log('editQuantity changed:', newVal, typeof newVal)
@@ -613,6 +786,86 @@ const fetchProducts = async () => {
         console.error('Error fetching products:', error)
     }
 }
+
+
+// Open create party modal
+const createNewParty = () => {
+  // Reset form and errors
+  Object.assign(createPartyForm, {
+    name: '',
+    phone: '',
+    email: '',
+    cnic: '',
+    address: '',
+    notes: ''
+  })
+  createPartyErrors.value = {}
+  createPartyError.value = ''
+  showCreatePartyModal.value = true
+  showPartySearch.value = false // Close search modal
+}
+
+// Close create party modal
+const closeCreatePartyModal = () => {
+  showCreatePartyModal.value = false
+}
+
+// Save new party
+const saveNewParty = async () => {
+  creatingParty.value = true
+  createPartyErrors.value = {}
+  createPartyError.value = ''
+
+  try {
+    const endpoint = form.stock_type === 'sale' ? '/customers' : '/suppliers'
+    const response = await axios.post(endpoint, createPartyForm)
+
+    if (response.data.success) {
+      const newParty = response.data.data
+
+      // Refresh parties list
+      await fetchParties()
+
+      // Automatically select the newly created party
+      form.party_name = newParty.name
+      handlePartyChange(newParty.name)
+
+      Swal.fire({
+        title: 'Success!',
+        text: `${form.stock_type === 'sale' ? 'Customer' : 'Supplier'} created and selected successfully!`,
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      })
+
+      // Close modal
+      closeCreatePartyModal()
+    }
+  } catch (error) {
+    if (error.response?.status === 422) {
+      // Validation errors
+      createPartyErrors.value = error.response.data.errors || {}
+      Swal.fire({
+        title: 'Validation Error',
+        html: Object.values(createPartyErrors.value)
+          .map(err => err[0])
+          .join('<br>'),
+        icon: 'error'
+      })
+    } else {
+      // General error
+      createPartyError.value = error.response?.data?.message || 'Failed to create party'
+      Swal.fire({
+        title: 'Error',
+        text: createPartyError.value,
+        icon: 'error'
+      })
+    }
+  } finally {
+    creatingParty.value = false
+  }
+}
+
 const handlePartyChange = (partyName) => {
     form.party_name = partyName
 
@@ -839,15 +1092,6 @@ const selectParty = (party) => {
     partySearchQuery.value = ''
 }
 
-const createNewParty = () => {
-    // In a real app, you might open a modal to create new party
-    Swal.fire({
-        title: 'Coming Soon',
-        text: `Create new ${form.stock_type === 'sale' ? 'customer' : 'supplier'} functionality would go here`,
-        icon: 'info'
-    })
-}
-
 // Helper methods
 const getProductName = (productId) => {
     const product = availableProducts.value.find(p => p.id == productId)
@@ -921,77 +1165,73 @@ const formatCurrency = (amount) => {
 
 // Form submission
 const submitForm = async () => {
-    submitting.value = true
-    errors.value = {}
+  submitting.value = true
+  errors.value = {}
 
-    // // Validation
-    // if (!form.party_name.trim()) {
-    //     errors.value.party_name = ['This field is required']
-    //     submitting.value = false
-    //     return
-    // }
+  if (form.items.length === 0) {
+    Swal.fire({
+      title: 'No Products Added',
+      text: 'Please add at least one product',
+      icon: 'warning'
+    })
+    submitting.value = false
+    return
+  }
 
-    if (form.items.length === 0) {
-        Swal.fire({
-            title: 'No Products Added',
-            text: 'Please add at least one product',
-            icon: 'warning'
-        })
-        submitting.value = false
-        return
+  // Prepare data
+  const submitData = {
+    ...form,
+    discount: discount.value,
+    tax_amount: taxAmount.value,
+    net_price: totalAmount.value,
+    is_draft: saveAsDraftFlag.value,
+    items: form.items.map(item => ({
+      product_id: item.product_id,
+      quantity: item.quantity,
+      unit_price: getUnitPrice(item.product_id),
+      total_price: item.total
+    }))
+  }
+
+  // Add receive payment if sale and amount > 0
+  if (form.stock_type === 'sale' && receivePayment.amount > 0) {
+    submitData.receive_payment = {
+      amount: receivePayment.amount,
+      payment_method: receivePayment.method,
+      reference_no: receivePayment.reference_no,
+      notes: receivePayment.notes
     }
+  }
 
-    // Prepare data
-    const submitData = {
-        ...form,
-        discount: discount.value,
-        tax_amount: taxAmount.value,
-        net_price: totalAmount.value,
-        is_draft: saveAsDraftFlag.value,
-        items: form.items.map(item => ({
-            product_id: item.product_id,
-            quantity: item.quantity,
-            unit_price: getUnitPrice(item.product_id),
-            total_price: item.total
-        }))
+  try {
+    const response = await axios.post('/stocks', submitData)
+console.log(response.data)
+    if (response.data.success) {
+      createdStock.value = response.data.data
+      successMessage.value = `${form.stock_type === 'sale' ? 'Sale' : 'Purchase'} record saved successfully!`
+      showSuccessModal.value = true
     }
-
-    try {
-        const response = await axios.post('/stocks', submitData)
-
-        if (response.data.success) {
-            createdStock.value = response.data.data
-            successMessage.value = `${form.stock_type === 'sale' ? 'Sale' : 'Purchase'} record saved successfully!`
-            showSuccessModal.value = true
-        }
-    } catch (error) {
-        if (error.response?.status === 422) {
-            errors.value = error.response.data.errors || {}
-        } else {
-            Swal.fire({
-                title: 'Error',
-                text: 'An error occurred. Please try again.',
-                icon: 'error'
-            })
-            console.error('Error:', error)
-        }
-    } finally {
-        submitting.value = false
+  } catch (error) {
+    console.log(error)
+    if (error.response?.status === 422) {
+      errors.value = error.response.data.errors || {}
+      Swal.fire({
+        title: 'Validation Error',
+        html: Object.values(errors.value)
+          .flat()
+          .join('<br>'),
+        icon: 'error'
+      })
+    } else {
+      Swal.fire({
+        title: 'Error',
+        text: error.response?.data?.message || 'Failed to create stock',
+        icon: 'error'
+      })
     }
-
-    // In the submitForm method, after creating the stock record:
-    if (form.stock_type === 'sale' && selectedParty.value) {
-        // Update customer balance
-        try {
-            await axios.post(`/customers/${selectedParty.value.id}/update-balance`, {
-                amount: totalAmount.value,
-                type: 'sale',
-                stock_id: response.data.data.id
-            })
-        } catch (error) {
-            console.error('Failed to update customer balance:', error)
-        }
-    }
+  } finally {
+    submitting.value = false
+  }
 }
 
 const resetForm = async () => {

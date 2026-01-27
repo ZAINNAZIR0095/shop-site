@@ -75,16 +75,18 @@ Route::prefix('suppliers')->group(function () {
     Route::get('/', [SupplierController::class, 'index']);
     Route::post('/', [SupplierController::class, 'store']);
     Route::get('/search', [SupplierController::class, 'search']);
-    Route::get('/{id}', [SupplierController::class, 'show']);
-    Route::put('/{id}', [SupplierController::class, 'update']);
-    Route::delete('/{id}', [SupplierController::class, 'destroy']);
 
-    // Transactions and Payments
+    // Transactions and Payments - MUST come before /{id}
     Route::get('/{id}/transactions', [SupplierController::class, 'getTransactions']);
     Route::post('/{id}/payments', [SupplierController::class, 'addPayment']);
     Route::post('/{id}/payments/update', [SupplierController::class, 'updatePayment']);
     Route::get('/{id}/balance', [SupplierController::class, 'getBalance']);
     Route::post('/{id}/update-balance', [SupplierController::class, 'updateBalance']);
+
+    // Generic routes - MUST come last
+    Route::get('/{id}', [SupplierController::class, 'show']);
+    Route::put('/{id}', [SupplierController::class, 'update']);
+    Route::delete('/{id}', [SupplierController::class, 'destroy']);
 });
 
 

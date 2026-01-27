@@ -69,3 +69,4 @@ class SupplierTransaction extends Model
         return $query->where('supplier_id', $supplierId);
     }
 }
+    

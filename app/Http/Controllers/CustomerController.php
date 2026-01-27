@@ -52,7 +52,7 @@ class CustomerController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:customers,name',
             'phone' => 'nullable|string|max:20|unique:customers,phone',
             'email' => 'nullable|email|max:255|unique:customers,email',
             'address' => 'nullable|string',
@@ -146,15 +146,15 @@ class CustomerController extends Controller
     public function update(Request $request, $id)
     {
         $customer = Customer::findOrFail($id);
-
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:customers,name,' . $id,
             'phone' => 'nullable|string|max:20|unique:customers,phone,' . $id,
             'email' => 'nullable|email|max:255|unique:customers,email,' . $id,
             'address' => 'nullable|string',
             'cnic' => 'nullable|string|max:15|unique:customers,cnic,' . $id,
             'notes' => 'nullable|string',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
+            'opening_balance' => 'nullable|numeric|min:0'
         ]);
 
         if ($validator->fails()) {
@@ -164,21 +164,65 @@ class CustomerController extends Controller
             ], 422);
         }
 
-        $customer->update([
-            'name' => $request->name,
-            'phone' => $request->phone,
-            'email' => $request->email,
-            'address' => $request->address,
-            'cnic' => $request->cnic,
-            'notes' => $request->notes,
-            'is_active' => $request->boolean('is_active', $customer->is_active)
-        ]);
+        DB::beginTransaction();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Customer updated successfully',
-            'data' => $customer
-        ]);
+        try {
+            $oldOpening = $customer->opening_balance ?? 0;
+            $newOpening = $request->has('opening_balance') ? (float) $request->opening_balance : $oldOpening;
+            $delta = $newOpening - $oldOpening;
+
+            $customer->name = $request->name;
+            $customer->phone = $request->phone;
+            $customer->email = $request->email;
+            $customer->address = $request->address;
+            $customer->cnic = $request->cnic;
+            $customer->notes = $request->notes;
+            $customer->is_active = $request->boolean('is_active', $customer->is_active);
+
+            if ($request->has('opening_balance')) {
+                $customer->opening_balance = $newOpening;
+                $customer->current_balance = ($customer->current_balance ?? 0) + $delta;
+            }
+
+            $customer->save();
+
+            if ($request->has('opening_balance')) {
+                $openingTx = CustomerTransaction::where('customer_id', $customer->id)
+                    ->where('type', 'opening_balance')
+                    ->first();
+
+                if ($openingTx) {
+                    $openingTx->debit = $newOpening;
+                    $openingTx->balance = ($openingTx->balance ?? 0) + $delta;
+                    $openingTx->save();
+                } elseif ($newOpening > 0) {
+                    CustomerTransaction::create([
+                        'customer_id' => $customer->id,
+                        'date' => now(),
+                        'type' => 'opening_balance',
+                        'description' => 'Opening Balance',
+                        'debit' => $newOpening,
+                        'balance' => $newOpening
+                    ]);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Customer updated successfully',
+                'data' => $customer
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update customer',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     public function destroy($id)

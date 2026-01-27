@@ -114,7 +114,7 @@
                                         {{ supplier.transactions_count }}
                                     </span>
                                 </td>
-                                <td class="text-center align-middle">
+                                <td class="text-start align-middle">
                                     <div class="btn-group btn-group-sm">
                                         <CButton color="light" size="sm" @click="viewDetails(supplier)">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
@@ -132,9 +132,9 @@
                                             @click="openPaymentModal(supplier)">
                                             <CIcon name="cil-money" />
                                         </CButton>
-                                        <CButton color="light" size="sm" @click="confirmDelete(supplier)">
+                                        <!-- <CButton color="light" size="sm" @click="confirmDelete(supplier)">
                                             <CIcon name="cil-trash" />
-                                        </CButton>
+                                        </CButton> -->
                                     </div>
                                 </td>
                             </tr>
@@ -419,12 +419,12 @@
                                                     </span>
                                                 </td>
                                                 <td class="text-end fw-bold">
-                                                    <span :class="getBalanceClass(transaction.displayRunningBalance)">
+                                                    <span :class="getBalanceClass(transaction.balance)">
                                                         PKR {{
-                                                        formatCurrency(Math.abs(transaction.displayRunningBalance)) }}
+                                                        formatCurrency(Math.abs(transaction.balance)) }}
                                                     </span>
                                                     <small class="d-block text-muted mt-1">
-                                                        {{ getBalanceText(transaction.displayRunningBalance) }}
+                                                        {{ getBalanceText(transaction.balance) }}
                                                     </small>
                                                 </td>
                                                 <td class="text-end">
@@ -716,31 +716,22 @@ const fetchSuppliers = async (page = 1) => {
 const transactionsWithRunningBalance = computed(() => {
     if (!supplierTransactions.value?.data?.length) return []
 
-    // Start from the FINAL (current) balance
     let running = parseFloat(selectedSupplier.value?.current_balance || 0)
 
-    // Copy and reverse: newest → oldest
     const reversed = [...supplierTransactions.value.data].reverse()
 
     const result = reversed.map(tx => {
         const debit = parseFloat(tx.debit || 0)
         const credit = parseFloat(tx.credit || 0)
 
-        // Undo the transaction effect to get previous balance
-        // Balance formula: opening + credit (purchases) - debit (payments)
         if (tx.type === 'payment') {
-            // Payment decreased balance (debit) → to go back: we ADD debit
             running += debit
         }
-        else if (['purchase', 'return'].includes(tx.type)) {
-            // Purchase increased balance (credit) → to go back: we SUBTRACT credit
+        else if (tx.type === 'purchase') {
             running -= credit
         }
-        else if (tx.type === 'opening_balance') {
-            // Opening balance is initial credit → to go back: subtract it
-            running -= credit
-        }
-        // Add other types if needed (adjustment...)
+
+        // ❌ DO NOT TOUCH opening_balance
 
         return {
             ...tx,
@@ -748,9 +739,9 @@ const transactionsWithRunningBalance = computed(() => {
         }
     })
 
-    // Flip back to newest first (same order as table)
     return result.reverse()
 })
+
 
 function openEditPaymentModal(transaction) {
     // Safety check
@@ -945,13 +936,15 @@ const fetchSupplierTransactions = async (page = 1) => {
 
     transactionsLoading.value = true
     try {
+        console.log(selectedSupplier.value.id)
         const response = await axios.get(`/suppliers/${selectedSupplier.value.id}/transactions`, {
             params: { page, per_page: 10 }
         })
+        console.log(response.data)
         supplierTransactions.value = response.data.data
     } catch (error) {
         console.error('Error fetching transactions:', error)
-    } finally {
+    } finally { 
         transactionsLoading.value = false
     }
 }

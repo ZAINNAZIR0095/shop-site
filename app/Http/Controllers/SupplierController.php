@@ -53,7 +53,7 @@ class SupplierController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
+            'name' => 'required|string|max:255|unique:suppliers,name',
             'phone' => 'nullable|string|max:20|unique:suppliers,phone',
             'email' => 'nullable|email|max:255|unique:suppliers,email',
             'address' => 'nullable|string',
@@ -146,43 +146,98 @@ class SupplierController extends Controller
         }
     }
 
-    public function update(Request $request, $id)
-    {
-        $supplier = Supplier::findOrFail($id);
+  public function update(Request $request, $id)
+{
+    $supplier = Supplier::findOrFail($id);
 
-        $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'phone' => 'nullable|string|max:20|unique:suppliers,phone,' . $id,
-            'email' => 'nullable|email|max:255|unique:suppliers,email,' . $id,
-            'address' => 'nullable|string',
-            'cnic' => 'nullable|string|max:15|unique:suppliers,cnic,' . $id,
-            'notes' => 'nullable|string',
-            'is_active' => 'boolean'
+    $validator = Validator::make($request->all(), [
+        'name'              => 'required|string|max:255|unique:suppliers,name,' . $id,
+        'phone'             => 'nullable|string|max:20|unique:suppliers,phone,' . $id,
+        'email'             => 'nullable|email|max:255|unique:suppliers,email,' . $id,
+        'address'           => 'nullable|string',
+        'cnic'              => 'nullable|string|max:15|unique:suppliers,cnic,' . $id,
+        'notes'             => 'nullable|string',
+        'opening_balance'   => 'required|numeric',
+        'is_active'         => 'boolean'
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'errors'  => $validator->errors()
+        ], 422);
+    }
+
+    DB::beginTransaction();
+
+    try {
+        // Get old values
+        $oldOpeningBalance = $supplier->opening_balance;
+        $newOpeningBalance = $request->opening_balance;
+
+        // Calculate difference
+        $difference = $newOpeningBalance - $oldOpeningBalance;
+
+        // Update supplier main data
+        $supplier->update([
+            'name'            => $request->name,
+            'phone'           => $request->phone,
+            'email'           => $request->email,
+            'address'         => $request->address,
+            'cnic'            => $request->cnic,
+            'notes'           => $request->notes,
+            'opening_balance' => $newOpeningBalance,
+            'is_active'       => $request->boolean('is_active', $supplier->is_active)
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
+        // Always update current_balance with the difference
+        $supplier->current_balance += $difference;
+        $supplier->save();
+
+        // ──────────────────────────────────────────────────────────────
+        // Find and update the existing "opening_balance" transaction
+        // ──────────────────────────────────────────────────────────────
+        $openingTransaction = SupplierTransaction::where('supplier_id', $supplier->id)
+            ->where('type', 'opening_balance')
+            ->first();
+
+        if ($openingTransaction) {
+            // Update existing opening balance transaction
+            $openingTransaction->update([
+                'date'        => now(), // or keep original date if you prefer
+                'credit'      => $newOpeningBalance, // since opening balance is always credit
+                'balance'     => $supplier->current_balance,
+                'description' => 'Opening Balance (Updated: ' . number_format($oldOpeningBalance, 2) . ' → ' . number_format($newOpeningBalance, 2) . ')',
+            ]);
+        } else {
+            // If somehow no opening transaction exists (rare case), create one
+            SupplierTransaction::create([
+                'supplier_id'   => $supplier->id,
+                'date'          => now(),
+                'type'          => 'opening_balance',
+                'description'   => 'Opening Balance (Created during update)',
+                'credit'        => $newOpeningBalance,
+                'balance'       => $supplier->current_balance,
+            ]);
         }
 
-        $supplier->update([
-            'name' => $request->name,
-            'phone' => $request->phone,
-            'email' => $request->email,
-            'address' => $request->address,
-            'cnic' => $request->cnic,
-            'notes' => $request->notes,
-            'is_active' => $request->boolean('is_active', $supplier->is_active)
-        ]);
+        DB::commit();
 
         return response()->json([
             'success' => true,
             'message' => 'Supplier updated successfully',
-            'data' => $supplier
+            'data'    => $supplier->fresh()->loadCount('transactions')
         ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to update supplier',
+            'error'   => $e->getMessage()
+        ], 500);
     }
+}
 
     public function destroy($id)
     {
@@ -216,11 +271,6 @@ class SupplierController extends Controller
         try {
             $supplier = Supplier::findOrFail($id);
             $transactions = $supplier->transactions()
-                ->with([
-                        'stock' => function ($query) {
-                            $query->select('id', 'reference_no', 'net_price', 'date');
-                        }
-                    ])
                 ->orderBy('date', 'desc')
                 ->orderBy('id', 'desc')
                 ->paginate(request()->get('per_page', 20));
@@ -234,7 +284,8 @@ class SupplierController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $transactions
+                'data' => $transactions,
+                'id' => $id
             ]);
 
         } catch (\Exception $e) {
