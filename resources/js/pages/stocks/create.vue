@@ -289,7 +289,6 @@
                                         <tr>
                                             <th width="5%">#</th>
                                             <th width="30%">Product</th>
-                                            <th width="15%" class="text-center">Stock</th>
                                             <th width="15%" class="text-center">Quantity</th>
                                             <th width="15%" class="text-center">Unit Price</th>
                                             <th width="15%" class="text-center">Total</th>
@@ -305,11 +304,6 @@
                                             <td class="align-middle">
                                                 <div class="fw-semibold">{{ getProductName(item.product_id) }}</div>
                                                 <small class="text-muted">{{ getProductSKU(item.product_id) }}</small>
-                                            </td>
-                                            <td class="text-center align-middle">
-                                                <span class="badge" :class="getStockBadgeClass(item)">
-                                                    {{ getProductStock(item.product_id) }}
-                                                </span>
                                             </td>
                                             <td class="text-center align-middle">
                                                 <div class="d-flex align-items-center justify-content-center">
@@ -349,7 +343,7 @@
                                                 PKR {{ formatCurrency(subtotal) }}
                                             </td>
                                         </tr>
-                                        <tr>
+                                        <!-- <tr>
                                             <td colspan="4" class="text-end">Discount:</td>
                                             <td colspan="3" class="text-start">
                                                 <CInputGroup size="sm" class="w-auto d-inline-flex">
@@ -358,13 +352,13 @@
                                                     <CInputGroupText>PKR</CInputGroupText>
                                                 </CInputGroup>
                                             </td>
-                                        </tr>
-                                        <tr>
+                                        </tr> -->
+                                        <!-- <tr>
                                             <td colspan="4" class="text-end">Tax (13%):</td>
                                             <td colspan="3" class="text-start">
                                                 PKR {{ formatCurrency(taxAmount) }}
                                             </td>
-                                        </tr>
+                                        </tr> -->
                                         <tr>
                                             <td colspan="4" class="text-end fw-bold h5">Total Amount:</td>
                                             <td colspan="3" class="text-start fw-bold h5 text-primary">
@@ -441,10 +435,6 @@
                 <CCard class="mt-4 shadow-sm">
                     <CCardBody>
                         <div class="d-flex justify-content-between align-items-center">
-                            <div>
-                                <CFormCheck label="Save as draft" id="save-draft" v-model="saveAsDraftFlag" />
-                                <small class="text-muted d-block mt-1">Save for later completion</small>
-                            </div>
                             <div class="d-flex gap-3">
                                 <CButton color="light" @click="printReceipt" :disabled="form.items.length === 0">
                                     <CIcon name="cil-print" class="me-2" />
@@ -665,7 +655,7 @@ const form = reactive({
     items: []
 })
 
-const discount = ref(0)
+// const discount = ref(0)
 const successMessage = ref('')
 const createdStock = ref(null)
 
@@ -695,11 +685,12 @@ const receivePayment = reactive({
 const amountDueAfterPayment = computed(() => {
   const bill = totalAmount.value || 0
   const received = receivePayment.amount || 0
-  const prevBalance = previousBalance.value || 0
+  const prevBalance = parseInt(previousBalance.value) || 0
 
   // For sale: previous balance (positive = customer owes)
   // After sale: customer owes prev + bill
   // After receiving payment: customer owes (prev + bill - received)
+  console.log(totalAmount.value , prevBalance)
   return prevBalance + bill - received
 })
 
@@ -717,6 +708,20 @@ watch(editQuantity, (newVal) => {
 
 watch(editTotal, (newVal) => {
     console.log('editTotal:', newVal)
+})
+
+watch(selectedProduct, async (newVal) => {
+    if (!newVal) return
+
+    await nextTick()
+
+    const editForm = document.querySelector('.product-edit-form')
+    if (editForm) {
+        editForm.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest'
+        })
+    }
 })
 
 
@@ -761,12 +766,12 @@ const subtotal = computed(() => {
 })
 
 
-const taxAmount = computed(() => {
-    return (subtotal.value - discount.value) * 0.13
-})
+// const taxAmount = computed(() => {
+//     return (subtotal.value - discount.value) * 0.13
+// })
 
 const totalAmount = computed(() => {
-    const subtotalValue = subtotal.value - discount.value + taxAmount.value
+    const subtotalValue = subtotal.value
 
     // For sales: customer owes (add to their balance)
     // For purchases: we owe supplier (add to their balance)
@@ -1181,8 +1186,6 @@ const submitForm = async () => {
   // Prepare data
   const submitData = {
     ...form,
-    discount: discount.value,
-    tax_amount: taxAmount.value,
     net_price: totalAmount.value,
     is_draft: saveAsDraftFlag.value,
     items: form.items.map(item => ({
@@ -1252,7 +1255,6 @@ const resetForm = async () => {
         form.party_address = ''
         form.party_email = ''
         form.items = []
-        discount.value = 0
         selectedProduct.value = null
         searchQuery.value = ''
         errors.value = {}
@@ -1274,8 +1276,8 @@ const printReceipt = () => {
     const formattedDate = new Date(form.date).toLocaleDateString('en-PK')
     const formattedTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     const formattedSubtotal = formatCurrency(subtotal.value)
-    const formattedDiscount = formatCurrency(discount.value)
-    const formattedTax = formatCurrency(taxAmount.value)
+    // const formattedDiscount = formatCurrency(discount.value)
+    // const formattedTax = formatCurrency(taxAmount.value)
     const formattedTotal = formatCurrency(totalAmount.value)
 
     // Generate items HTML - SINGLE LINE PER ROW
@@ -1488,21 +1490,11 @@ const printReceipt = () => {
                         <span>Subtotal:</span>
                         <span>PKR ${formattedSubtotal}</span>
                     </div>
-                    ${discount.value > 0 ? `<div class="total-row"><span>Discount:</span><span>PKR ${formattedDiscount}</span></div>` : ''}
-                    ${taxAmount.value > 0 ? `<div class="total-row"><span>Tax (13%):</span><span>PKR ${formattedTax}</span></div>` : ''}
                     <div class="total-row grand-total">
                         <span>NET TOTAL:</span>
                         <span>PKR ${formattedTotal}</span>
                     </div>
                 </div>
-
-${selectedParty.value && form.stock_type === 'sale' ? `
-<div style="margin-top: 5px;">
-    <div><strong>Previous Balance:</strong> PKR ${formatCurrency(previousBalance)}</div>
-    <div><strong>New Balance:</strong> PKR ${formatCurrency(previousBalance + totalAmount.value)}</div>
-</div>
-` : ''}
-
                 <!-- Footer -->
                 <div class="footer">
                     <div>Printed: ${new Date().toLocaleDateString()} ${formattedTime}</div>

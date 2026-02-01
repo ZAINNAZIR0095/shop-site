@@ -13,6 +13,7 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = newToken
     localStorage.setItem('auth_token', newToken)
     axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`
+    axios.defaults.baseURL = 'http://127.0.0.1:8000';
   }
 
   function setUser(userData) {

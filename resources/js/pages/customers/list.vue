@@ -66,7 +66,12 @@
                 </small>
             </CCardHeader>
             <CCardBody class="p-0">
-                <div class="table-responsive">
+                <!--  Loading State -->
+                <div v-if="loading" class="d-flex justify-content-center align-items-center py-5">
+                    <CSpinner color="primary" />
+                    <span class="ms-3 text-muted">Loading customers...</span>
+                </div>
+                <div v-else class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
                             <tr>
@@ -340,7 +345,7 @@
                                 <div class="col">
                                     <small class="text-muted d-block">Total Sales</small>
                                     <h5 class="mb-0 text-danger">PKR {{ formatCurrency(balanceSummary.total_debit || 0)
-                                        }}</h5>
+                                    }}</h5>
                                 </div>
                                 <div class="col">
                                     <small class="text-muted d-block">Total Payments</small>
@@ -368,7 +373,7 @@
                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                     <small class="text-muted">
                                         Showing {{ transactionsFrom }} to {{ transactionsTo }} of {{
-                                        selectedCustomer.transactions.length }} transactions
+                                            selectedCustomer.transactions.length }} transactions
                                     </small>
 
                                     <!-- Pagination -->
@@ -426,16 +431,13 @@
                                                 <td class="text-end fw-bold">
                                                     PKR {{ formatCurrency(transaction.balance) }}
                                                 </td>
-                                                                                      <td class="text-end">
-                <CButton
-                  v-if="transaction.type === 'payment'"
-                  size="sm"
-                  color="warning"
-                  @click="openEditCustomerPaymentModal(transaction)"
-                >
-                  Edit
-                </CButton>
-              </td>
+                                                <td class="text-end">
+                                                    <CButton v-if="transaction.type === 'payment'" size="sm"
+                                                        color="warning"
+                                                        @click="openEditCustomerPaymentModal(transaction)">
+                                                        Edit
+                                                    </CButton>
+                                                </td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -459,58 +461,59 @@
         </CModal>
 
         <!-- Edit Payment Modal (for Customer) -->
-<CModal :visible="editCustomerPaymentModal" @close="editCustomerPaymentModal = false">
-  <CModalHeader>
-    <CModalTitle>Edit Customer Payment</CModalTitle>
-  </CModalHeader>
+        <CModal :visible="editCustomerPaymentModal" @close="editCustomerPaymentModal = false">
+            <CModalHeader>
+                <CModalTitle>Edit Customer Payment</CModalTitle>
+            </CModalHeader>
 
-  <CModalBody>
-    <div class="row g-3">
-      <div class="col-md-6">
-        <CFormLabel>Date</CFormLabel>
-        <CFormInput type="date" v-model="editCustomerPaymentForm.date" />
-      </div>
+            <CModalBody>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <CFormLabel>Date</CFormLabel>
+                        <CFormInput type="date" v-model="editCustomerPaymentForm.date" />
+                    </div>
 
-      <div class="col-md-6">
-        <CFormLabel>Amount (PKR)</CFormLabel>
-        <CInputGroup>
-          <CInputGroupText>PKR</CInputGroupText>
-          <CFormInput type="number" v-model.number="editCustomerPaymentForm.amount" min="1" step="0.01" />
-        </CInputGroup>
-      </div>
+                    <div class="col-md-6">
+                        <CFormLabel>Amount (PKR)</CFormLabel>
+                        <CInputGroup>
+                            <CInputGroupText>PKR</CInputGroupText>
+                            <CFormInput type="number" v-model.number="editCustomerPaymentForm.amount" min="1"
+                                step="0.01" />
+                        </CInputGroup>
+                    </div>
 
-      <div class="col-12">
-        <CFormLabel>Payment Method</CFormLabel>
-        <CFormSelect v-model="editCustomerPaymentForm.payment_method">
-          <option value="cash">Cash</option>
-          <option value="bank_transfer">Bank Transfer</option>
-          <option value="cheque">Cheque</option>
-          <option value="other">Other</option>
-        </CFormSelect>
-      </div>
+                    <div class="col-12">
+                        <CFormLabel>Payment Method</CFormLabel>
+                        <CFormSelect v-model="editCustomerPaymentForm.payment_method">
+                            <option value="cash">Cash</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="cheque">Cheque</option>
+                            <option value="other">Other</option>
+                        </CFormSelect>
+                    </div>
 
-      <div class="col-md-6">
-        <CFormLabel>Reference Number</CFormLabel>
-        <CFormInput v-model="editCustomerPaymentForm.reference_no" />
-      </div>
+                    <div class="col-md-6">
+                        <CFormLabel>Reference Number</CFormLabel>
+                        <CFormInput v-model="editCustomerPaymentForm.reference_no" />
+                    </div>
 
-      <div class="col-md-6">
-        <CFormLabel>Notes</CFormLabel>
-        <CFormInput v-model="editCustomerPaymentForm.notes" />
-      </div>
-    </div>
-  </CModalBody>
+                    <div class="col-md-6">
+                        <CFormLabel>Notes</CFormLabel>
+                        <CFormInput v-model="editCustomerPaymentForm.notes" />
+                    </div>
+                </div>
+            </CModalBody>
 
-  <CModalFooter>
-    <CButton color="secondary" @click="editCustomerPaymentModal = false">
-      Cancel
-    </CButton>
-    <CButton color="primary" @click="updateCustomerPayment" :disabled="processingPayment">
-      <CSpinner v-if="processingPayment" component="span" size="sm" class="me-2" />
-      Update Payment
-    </CButton>
-  </CModalFooter>
-</CModal>
+            <CModalFooter>
+                <CButton color="secondary" @click="editCustomerPaymentModal = false">
+                    Cancel
+                </CButton>
+                <CButton color="primary" @click="updateCustomerPayment" :disabled="processingPayment">
+                    <CSpinner v-if="processingPayment" component="span" size="sm" class="me-2" />
+                    Update Payment
+                </CButton>
+            </CModalFooter>
+        </CModal>
 
 
         <!-- Payment Modal -->
@@ -733,13 +736,14 @@ const openEditCustomerPaymentModal = (transaction) => {
     editCustomerPaymentForm.reference_no = transaction.reference_no || ''
     editCustomerPaymentForm.notes = transaction.notes || ''
 
-    editCustomerPaymentModal.value = true
+    editCustomerPaymentModal.value = true;
+    closeDetailsModal();
 }
 
 // Update customer payment
 const updateCustomerPayment = async () => {
     if (!editCustomerPaymentForm.id) return
-const seletedCustomer = selectedCustomer.value
+    const seletedCustomer = selectedCustomer.value
     processingPayment.value = true
 
     try {
@@ -757,10 +761,10 @@ const seletedCustomer = selectedCustomer.value
 
         // Refresh data
         console.log(selectedCustomer.value)
-  // Only refresh details if modal is still open and customer is selected
-  await viewDetails(seletedCustomer)
+        // Only refresh details if modal is still open and customer is selected
+        await viewDetails(seletedCustomer)
 
-    await fetchCustomers()
+        await fetchCustomers()
 
     } catch (error) {
         Swal.fire({

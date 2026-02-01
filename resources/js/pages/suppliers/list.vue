@@ -66,7 +66,13 @@
                 </small>
             </CCardHeader>
             <CCardBody class="p-0">
-                <div class="table-responsive">
+                <!--  Loading State -->
+                <div v-if="loading" class="d-flex justify-content-center align-items-center py-5">
+                    <CSpinner color="primary" />
+                    <span class="ms-3 text-muted">Loading customers...</span>
+                </div>
+
+                <div v-else class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead class="table-light">
                             <tr>
@@ -342,7 +348,7 @@
                                 <div class="col">
                                     <small class="text-muted d-block">Total Purchases</small>
                                     <h5 class="mb-0 text-danger">PKR {{ formatCurrency(balanceSummary.total_credit || 0)
-                                    }}</h5>
+                                        }}</h5>
                                 </div>
                                 <div class="col">
                                     <small class="text-muted d-block">Total Payments</small>
@@ -405,7 +411,7 @@
                                                 </td>
                                                 <td>
                                                     <small class="text-muted">{{ transaction.reference_no || 'N/A'
-                                                        }}</small>
+                                                    }}</small>
                                                 </td>
                                                 <td>{{ transaction.description }}</td>
                                                 <td class="text-end text-danger">
@@ -421,7 +427,7 @@
                                                 <td class="text-end fw-bold">
                                                     <span :class="getBalanceClass(transaction.balance)">
                                                         PKR {{
-                                                        formatCurrency(Math.abs(transaction.balance)) }}
+                                                            formatCurrency(Math.abs(transaction.balance)) }}
                                                     </span>
                                                     <small class="d-block text-muted mt-1">
                                                         {{ getBalanceText(transaction.balance) }}
@@ -769,6 +775,7 @@ function openEditPaymentModal(transaction) {
     //   }
     console.log(transaction.supplier_id, selectedSupplier.value)
     editPaymentModal.value = true;
+    closeDetailsModal();
 }
 
 const updatePayment = async () => {
@@ -944,7 +951,7 @@ const fetchSupplierTransactions = async (page = 1) => {
         supplierTransactions.value = response.data.data
     } catch (error) {
         console.error('Error fetching transactions:', error)
-    } finally { 
+    } finally {
         transactionsLoading.value = false
     }
 }

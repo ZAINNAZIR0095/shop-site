@@ -303,90 +303,241 @@ class StockController extends Controller
         }
     }
 
-    public function update(Request $request, Stock $stock)
-    {
-        $validator = Validator::make($request->all(), [
-            'date' => 'sometimes|date',
-            'description' => 'nullable|string',
-            'party_name' => 'nullable|string|max:255',
-            'party_phone' => 'nullable|string|max:20',
-            'party_address' => 'nullable|string',
-            'items' => 'sometimes|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
-            'items.*.quantity' => 'required|integer|min:1'
-        ]);
+  public function update(Request $request, Stock $stock)
+{
+    $validator = Validator::make($request->all(), [
+        'date'          => 'sometimes|date',
+        'description'   => 'nullable|string',
+        'party_name'    => 'nullable|string|max:255',
+        'party_phone'   => 'nullable|string|max:20',
+        'party_address' => 'nullable|string',
+        'stock_type'    => 'sometimes|in:sale,purchase,issue,return',
+        'items'         => 'sometimes|array',
+        'items.*.product_id' => 'required_with:items|exists:products,id',
+        'items.*.quantity'   => 'required_with:items|integer|min:1',
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        // Optional: allow updating / removing receive_payment
+        'receive_payment' => 'nullable|array',
+        'receive_payment.amount'        => 'nullable|numeric|min:0',
+        'receive_payment.payment_method' => 'nullable|in:cash,bank_transfer,cheque,other',
+        'receive_payment.reference_no'  => 'nullable|string|max:100',
+        'receive_payment.notes'         => 'nullable|string',
+    ]);
 
-        DB::beginTransaction();
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'errors'  => $validator->errors()
+        ], 422);
+    }
 
-        try {
-            // Delete old details
-            $stock->details()->delete();
+    DB::beginTransaction();
 
-            // Update stock info
-            $stock->update([
-                'date' => $request->date ?? $stock->date,
-                'description' => $request->description ?? $stock->description,
-                'party_name' => $request->party_name ?? $stock->party_name,
-                'party_phone' => $request->party_phone ?? $stock->party_phone,
-                'party_address' => $request->party_address ?? $stock->party_address
-            ]);
+    try {
+        // ─── 1. Revert old financial impact ────────────────────────────────────────
 
-            $netPrice = 0;
+        $oldNet       = $stock->net_price;
+        $oldType      = $stock->stock_type;
+        $oldPartyName = $stock->party_name;
 
-            // Create new stock details
-            if ($request->has('items')) {
-                foreach ($request->items as $item) {
-                    $product = Product::find($item['product_id']);
+        // Revert customer side (sale)
+        if ($oldType === 'sale' && $oldPartyName) {
+            $oldSaleTx = CustomerTransaction::where('stock_id', $stock->id)
+                ->where('type', 'sale')
+                ->first();
 
-                    // Determine unit price
-                    $unitPrice = $stock->stock_type === 'sale'
-                        ? $product->sale_price
-                        : $product->purchase_price;
-
-                    $itemTotal = $item['quantity'] * $unitPrice;
-                    $netPrice += $itemTotal;
-
-                    // Create stock detail
-                    StockDetail::create([
-                        'stock_id' => $stock->id,
-                        'product_id' => $item['product_id'],
-                        'quantity' => $item['quantity'],
-                        'unit_price' => $unitPrice
-                    ]);
+            if ($oldSaleTx) {
+                $customer = Customer::find($oldSaleTx->customer_id);
+                if ($customer) {
+                    $customer->current_balance -= $oldNet;
+                    $customer->save();
                 }
             }
 
-            // Update net price
-            $stock->net_price = $netPrice;
-            $stock->save();
+            // Delete old sale + payment transactions & payment record
+            $oldPaymentTx = CustomerTransaction::where('stock_id', $stock->id)
+                ->where('type', 'payment')
+                ->first();
 
-            // Load relationships
-            $stock->load(['details.product', 'user']);
+            if ($oldPaymentTx && $oldPaymentTx->payment_id) {
+                Payment::where('id', $oldPaymentTx->payment_id)->delete();
+            }
 
-            DB::commit();
+            CustomerTransaction::where('stock_id', $stock->id)->delete();
+        }
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Stock record updated successfully',
-                'data' => $stock
+        // Revert supplier side (purchase)
+        if ($oldType === 'purchase' && $oldPartyName) {
+            $oldPurchaseTx = SupplierTransaction::where('stock_id', $stock->id)
+                ->where('type', 'purchase')
+                ->first();
+
+            if ($oldPurchaseTx) {
+                $supplier = Supplier::find($oldPurchaseTx->supplier_id);
+                if ($supplier) {
+                    $supplier->current_balance -= $oldNet;
+                    $supplier->save();
+                }
+            }
+
+            SupplierTransaction::where('stock_id', $stock->id)->delete();
+        }
+
+        // ─── 2. Delete old details ─────────────────────────────────────────────────
+        $stock->details()->delete();
+
+        // ─── 3. Update core stock fields ───────────────────────────────────────────
+        $stock->update([
+            'date'          => $request->date          ?? $stock->date,
+            'description'   => $request->description   ?? $stock->description,
+            'party_name'    => $request->party_name    ?? $stock->party_name,
+            'party_phone'   => $request->party_phone   ?? $stock->party_phone,
+            'party_address' => $request->party_address ?? $stock->party_address,
+            'stock_type'    => $request->stock_type    ?? $stock->stock_type,
+        ]);
+
+        // ─── 4. Recalculate net price & create new details ─────────────────────────
+        $netPrice = 0;
+
+        if ($request->has('items') && count($request->items) > 0) {
+            foreach ($request->items as $item) {
+                $product = Product::findOrFail($item['product_id']);
+
+                $unitPrice = $stock->stock_type === 'sale'
+                    ? $product->sale_price
+                    : $product->purchase_price;
+
+                $itemTotal = $item['quantity'] * $unitPrice;
+                $netPrice += $itemTotal;
+
+                StockDetail::create([
+                    'stock_id'   => $stock->id,
+                    'product_id' => $item['product_id'],
+                    'quantity'   => $item['quantity'],
+                    'unit_price' => $unitPrice,
+                ]);
+            }
+        }
+        // If no items sent → keep old net price (or set to 0 if you prefer)
+
+        $stock->net_price = $netPrice;
+        $stock->save();
+
+        // ─── 5. Recreate party + transactions (just like in store) ─────────────────
+
+        // SALE
+        if ($stock->stock_type === 'sale' && $stock->party_name) {
+            $customer = Customer::firstOrCreate(
+                ['name' => $stock->party_name],
+                [
+                    'phone'           => $stock->party_phone,
+                    'address'         => $stock->party_address,
+                    'current_balance' => 0,
+                ]
+            );
+
+            $newBalance = $customer->current_balance + $netPrice;
+
+            CustomerTransaction::create([
+                'customer_id'   => $customer->id,
+                'date'          => $stock->date,
+                'type'          => 'sale',
+                'reference_no'  => 'SAL-' . str_pad($stock->id, 6, '0', STR_PAD_LEFT),
+                'description'   => 'Sale Transaction',
+                'debit'         => $netPrice,
+                'credit'        => 0,
+                'balance'       => $newBalance,
+                'stock_id'      => $stock->id,
             ]);
 
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update stock record',
-                'error' => $e->getMessage()
-            ], 500);
+            $customer->current_balance = $newBalance;
+
+            // Handle receive_payment (allow update / new / remove)
+            $received = $request->receive_payment['amount'] ?? 0;
+
+            if ($received > 0) {
+                $payment = Payment::create([
+                    'customer_id'    => $customer->id,
+                    'date'           => $stock->date,
+                    'amount'         => $received,
+                    'payment_method' => $request->receive_payment['payment_method'] ?? 'cash',
+                    'reference_no'   => $request->receive_payment['reference_no'] ?? null,
+                    'notes'          => $request->receive_payment['notes'] ?? null,
+                    'received_by'    => auth()->id(),
+                ]);
+
+                $newBalance -= $received;
+
+                CustomerTransaction::create([
+                    'customer_id'   => $customer->id,
+                    'date'          => $stock->date,
+                    'type'          => 'payment',
+                    'reference_no'  => $request->receive_payment['reference_no']
+                        ?? 'PAY-' . str_pad($payment->id, 6, '0', STR_PAD_LEFT),
+                    'description'   => 'Payment Received',
+                    'debit'         => 0,
+                    'credit'        => $received,
+                    'balance'       => $newBalance,
+                    'payment_id'    => $payment->id,
+                    'stock_id'      => $stock->id,
+                ]);
+
+                $customer->current_balance = $newBalance;
+            }
+
+            $customer->save();
         }
+
+        // PURCHASE
+        if ($stock->stock_type === 'purchase' && $stock->party_name) {
+            $supplier = Supplier::firstOrCreate(
+                ['name' => $stock->party_name],
+                [
+                    'phone'           => $stock->party_phone,
+                    'address'         => $stock->party_address,
+                    'current_balance' => 0,
+                ]
+            );
+
+            $newBalance = $supplier->current_balance + $netPrice;
+
+            SupplierTransaction::create([
+                'supplier_id'  => $supplier->id,
+                'date'         => $stock->date,
+                'type'         => 'purchase',
+                'reference_no' => 'PUR-' . str_pad($stock->id, 6, '0', STR_PAD_LEFT),
+                'description'  => 'Purchase Transaction',
+                'debit'        => 0,
+                'credit'       => $netPrice,
+                'balance'      => $newBalance,
+                'stock_id'     => $stock->id,
+            ]);
+
+            $supplier->current_balance = $newBalance;
+            $supplier->save();
+        }
+
+        // ─── 6. Finalize ───────────────────────────────────────────────────────────
+        $stock->load(['details.product', 'user']);
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Stock record updated successfully',
+            'data'    => $stock
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to update stock record',
+            'error'   => $e->getMessage(),
+            // 'trace'   => $e->getTraceAsString()   // ← uncomment only in dev
+        ], 500);
     }
+}
 
     public function destroy(Stock $stock)
     {

@@ -57,9 +57,15 @@
                             <CFormLabel class="fw-semibold">
                                 {{ form.stock_type === 'sale' ? 'Customer' : 'Supplier' }} Name
                             </CFormLabel>
-                            <CFormInput v-model="form.party_name"
+                            <!-- <CFormInput v-model="form.party_name"
                                 :placeholder="form.stock_type === 'sale' ? 'Enter customer name' : 'Enter supplier name'"
-                                :invalid="errors.party_name" @input="clearError('party_name')" />
+                                :invalid="errors.party_name" @input="clearError('party_name')" /> -->
+                                <VAutocomplete v-model="form.party_name" :items="parties" item-title="name"
+                                    item-value="name" :label="form.stock_type === 'sale' ? 'Customer' : 'Supplier'"
+                                    :placeholder="form.stock_type === 'sale' ? 'Select customer' : 'Select supplier'"
+                                    :error="!!errors.party_name" :error-messages="errors.party_name" clearable
+                                     />
+
                             <CFormFeedback v-if="errors.party_name" invalid>
                                 {{ errors.party_name[0] }}
                             </CFormFeedback>
@@ -424,6 +430,7 @@ const isEditingExisting = ref(false)
 const editingIndex = ref(-1)
 const productError = ref('')
 const quantityError = ref('')
+const parties = ref([])
 
 // Form data
 const form = reactive({
@@ -518,6 +525,18 @@ const fetchProducts = async () => {
         availableProducts.value = response.data || [];
     } catch (error) {
         console.error('Error fetching products:', error)
+    }
+}
+
+const fetchParties = async () => {
+    try {
+        // This would be your API endpoint for customers/suppliers
+        const endpoint = form.stock_type === 'sale' ? '/customers' : '/suppliers'
+        const response = await axios.get(endpoint)
+        console.log('customers', response.data.data.data)
+        parties.value = response.data.data.data || []
+    } catch (error) {
+        console.error('Error fetching parties:', error)
     }
 }
 
@@ -1012,7 +1031,8 @@ const viewStock = () => {
 onMounted(async () => {
     await Promise.all([
         fetchStock(),
-        fetchProducts()
+        fetchProducts(),
+        fetchParties(),
     ])
 })
 

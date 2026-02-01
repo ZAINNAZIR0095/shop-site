@@ -1,1 +1,4 @@
 *.sqlite*
+# Ignore specific folders inside electron
+/electron/node_modules/
+/electron/dist/

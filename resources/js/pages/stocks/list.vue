@@ -20,7 +20,7 @@
                                 </CButton>
                             </router-link>
 
-                            <!-- Reports Dropdown -->
+                            <!-- Reports Dropdown
                             <CDropdown>
                                 <CDropdownToggle color="info">
                                     <CIcon class="me-2" />
@@ -37,7 +37,7 @@
                                         Monthly Summary
                                     </CDropdownItem>
                                 </CDropdownMenu>
-                            </CDropdown>
+                            </CDropdown> -->
                         </div>
                     </div>
                 </CCardBody>
