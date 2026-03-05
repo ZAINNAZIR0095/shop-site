@@ -5,7 +5,6 @@
   "private": true,
 
   "scripts": {
-    "prestart": "npm --prefix .. run build",
     "start": "electron .",
     "build": "electron-builder"
   },
@@ -18,12 +17,29 @@
   "build": {
     "appId": "com.shahzaib.shop",
     "productName": "Shahzaib Shop Software",
+
     "directories": {
       "output": "../dist"
     },
+     "extraResources": [
+    {
+      "from": "../php",
+      "to": "php"
+    },
+    {
+      "from": "../",
+      "to": "app",
+    "filter": [
+      "**/*",
+      "!electron/**/*",
+      "!dist/**/*",
+      "!node_modules/**/*",
+      "!php/**/*"
+    ]
+    }
+  ],
+
     "files": [
-      "main.js",
-      "preload.js",
       "../app/**/*",
       "../bootstrap/**/*",
       "../config/**/*",
@@ -31,32 +47,15 @@
       "../public/**/*",
       "../resources/**/*",
       "../routes/**/*",
-      "../storage/**/*",
       "../vendor/**/*",
       "../artisan",
+      "./**/*",
       "../php/**/*"
     ],
-    "extraResources": [
-      { "from": "../php", "to": "php" },
-      {
-        "from": "..",
-        "to": "laravel",
-        "filter": [
-          "app/**/*",
-          "bootstrap/**/*",
-          "config/**/*",
-          "database/**/*",
-          "public/**/*",
-          "resources/**/*",
-          "routes/**/*",
-          "storage/**/*",
-          "vendor/**/*",
-          "artisan",
-          ".env"
-        ]
-      }
+    "asarUnpack": [
+  "php/**",
+  "public/**"
     ],
-    "asar": false,
     "win": {
       "target": "nsis"
     }

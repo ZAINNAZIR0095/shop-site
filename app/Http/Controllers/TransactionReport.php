@@ -383,14 +383,18 @@ class TransactionReport extends Controller
     {
         $query = Stock::whereIn('stock_type', ['sale', 'purchase'])
             ->select(
-                DB::raw('YEAR(date) as year'),
-                DB::raw('WEEK(date, 1) as week'),
-                'stock_type',
-                DB::raw('SUM(net_price) as amount')
-            )
-            ->groupBy(DB::raw('YEAR(date)'), DB::raw('WEEK(date, 1)'), 'stock_type')
-            ->orderBy('year')
-            ->orderBy('week');
+    DB::raw("strftime('%Y', date) AS year"),
+    DB::raw("strftime('%W', date) AS week"),
+    'stock_type',
+    DB::raw('SUM(net_price) AS amount')
+)
+->groupBy(
+    DB::raw("strftime('%Y', date)"),
+    DB::raw("strftime('%W', date)"),
+    'stock_type'
+)
+->orderBy('year')
+->orderBy('week');
 
         // Apply date filters
         if ($request->filled('start_date')) {
@@ -442,12 +446,16 @@ class TransactionReport extends Controller
     {
         $query = Stock::whereIn('stock_type', ['sale', 'purchase'])
             ->select(
-                DB::raw('YEAR(date) as year'),
-                DB::raw('MONTH(date) as month'),
+                DB::raw("strftime('%Y', date) as year"),
+DB::raw("strftime('%m', date) AS month"),
                 'stock_type',
                 DB::raw('SUM(net_price) as amount')
             )
-            ->groupBy(DB::raw('YEAR(date)'), DB::raw('MONTH(date)'), 'stock_type')
+            ->groupBy(
+              DB::raw("strftime('%Y', date)"),
+                DB::raw("strftime('%m', date)"),
+                'stock_type'
+            )
             ->orderBy('year')
             ->orderBy('month');
 
@@ -501,11 +509,14 @@ class TransactionReport extends Controller
     {
         $query = Stock::whereIn('stock_type', ['sale', 'purchase'])
             ->select(
-                DB::raw('YEAR(date) as year'),
+                DB::raw("strftime('%Y', date) as year"),
                 'stock_type',
                 DB::raw('SUM(net_price) as amount')
             )
-            ->groupBy(DB::raw('YEAR(date)'), 'stock_type')
+            ->groupBy(
+                DB::raw("strftime('%Y', date)"),
+                'stock_type'
+            )
             ->orderBy('year');
 
         // Apply date filters if exists

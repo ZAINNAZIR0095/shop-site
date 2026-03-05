@@ -128,7 +128,7 @@ class DashboardController extends Controller
                     WHERE stock_details.product_id = products.id
                 ), 0) as current_stock')
             ])
-            ->having('current_stock', '>', 0)
+            ->where('current_stock', '>', 0)
             ->get();
 
         // Group by category and calculate total value
@@ -176,7 +176,7 @@ class DashboardController extends Controller
                     WHERE stock_details.product_id = products.id
                 ), 0) as current_stock')
             ])
-            ->havingRaw('current_stock <= products.min_limit')
+            ->whereRaw('current_stock <= products.min_limit')
             ->orderBy('current_stock', 'asc')
             ->limit(10)
             ->get();
@@ -229,7 +229,7 @@ class DashboardController extends Controller
                     WHERE stock_details.product_id = products.id
                 ), 0) as current_stock')
             ])
-            ->havingRaw('current_stock <= min_limit')
+            ->where('current_stock <= min_limit')
             ->count();
     }
 
