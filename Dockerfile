@@ -4,6 +4,8 @@ WORKDIR /app
 
 COPY . .
 
+RUN cp .env.example .env
+
 RUN apt-get update && apt-get install -y git unzip \
     && docker-php-ext-install pdo pdo_mysql
 
