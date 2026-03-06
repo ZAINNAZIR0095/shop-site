@@ -30,4 +30,4 @@ RUN npm run build
 # APP_KEY can also be set via Railway Variables to avoid key generation errors
 
 # Start Laravel server with config cache and migrations
-CMD php artisan config:cache && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=$PORT
+CMD php artisan config:cache && php artisan migrate --force &&  php artisan db:seed --force && php artisan serve --host=0.0.0.0 --port=$PORT
