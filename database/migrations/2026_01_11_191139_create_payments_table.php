@@ -8,6 +8,8 @@ return new class extends Migration
 {
     public function up(): void
     {
+                if (!Schema::hasTable('customers')) {
+
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
 
@@ -40,6 +42,7 @@ return new class extends Migration
             $table->index('date');
             $table->index('payment_method');
         });
+          }
     }
 
     public function down(): void
