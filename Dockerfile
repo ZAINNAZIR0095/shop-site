@@ -19,15 +19,18 @@ RUN apt-get update && apt-get install -y git unzip curl \
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
+RUN npm install
+RUN npm run build
+
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Install frontend dependencies and build Vue frontend
-RUN npm install
-RUN npm run build
+# Copy wait script
+COPY wait-for-mysql.sh /usr/local/bin/wait-for-mysql.sh
+RUN chmod +x /usr/local/bin/wait-for-mysql.sh
 
 # Set environment variables from Railway (optional override)
 # APP_KEY can also be set via Railway Variables to avoid key generation errors
 
 # Start Laravel server with config cache and migrations
-CMD php artisan config:cache && php artisan migrate --force &&  php artisan db:seed --force && php artisan serve --host=0.0.0.0 --port=$PORT
+CMD wait-for-mysql.sh php artisan config:cache && php artisan migrate --force && php artisan db:seed --force && php artisan serve --host=0.0.0.0 --port=$PORT
