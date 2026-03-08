@@ -7,9 +7,6 @@ WORKDIR /app
 # Copy all project files
 COPY . .
 
-# Ensure .env exists
-RUN cp .env.example .env
-
 # Install system dependencies, PHP extensions, Node.js
 RUN apt-get update && apt-get install -y git unzip curl \
     && docker-php-ext-install pdo pdo_mysql \
