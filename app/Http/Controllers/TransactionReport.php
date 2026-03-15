@@ -61,12 +61,12 @@ class TransactionReport extends Controller
 
             if ($request->filled('search')) {
                 $search = $request->search;
-                $query->where(function($q) use ($search) {
+                $query->where(function ($q) use ($search) {
                     $q->where('party_name', 'like', '%' . $search . '%')
-                      ->orWhere('description', 'like', '%' . $search . '%')
-                      ->orWhereHas('details.product', function($q) use ($search) {
-                          $q->where('name', 'like', '%' . $search . '%');
-                      });
+                        ->orWhere('description', 'like', '%' . $search . '%')
+                        ->orWhereHas('details.product', function ($q) use ($search) {
+                            $q->where('name', 'like', '%' . $search . '%');
+                        });
                 });
             }
 
@@ -102,7 +102,7 @@ class TransactionReport extends Controller
             $transactions = $query->paginate($perPage);
 
             // Transform the data for response
-            $transformedTransactions = $transactions->getCollection()->map(function($stock) {
+            $transformedTransactions = $transactions->getCollection()->map(function ($stock) {
                 return $this->formatTransaction($stock);
             });
 
@@ -151,7 +151,7 @@ class TransactionReport extends Controller
         $totalQuantity = $stock->details->sum('quantity');
 
         // Calculate average unit price (weighted by quantity)
-        $totalAmount = $stock->details->sum(function($detail) {
+        $totalAmount = $stock->details->sum(function ($detail) {
             return $detail->quantity * $detail->unit_price;
         });
 
@@ -178,7 +178,7 @@ class TransactionReport extends Controller
             'party_address' => $stock->party_address,
             'description' => $stock->description,
             'items_count' => $stock->details->count(),
-            'items' => $stock->details->map(function($detail) {
+            'items' => $stock->details->map(function ($detail) {
                 return [
                     'product_id' => $detail->product_id,
                     'product_name' => $detail->product->name ?? 'N/A',
@@ -383,18 +383,14 @@ class TransactionReport extends Controller
     {
         $query = Stock::whereIn('stock_type', ['sale', 'purchase'])
             ->select(
-    DB::raw("strftime('%Y', date) AS year"),
-    DB::raw("strftime('%W', date) AS week"),
-    'stock_type',
-    DB::raw('SUM(net_price) AS amount')
-)
-->groupBy(
-    DB::raw("strftime('%Y', date)"),
-    DB::raw("strftime('%W', date)"),
-    'stock_type'
-)
-->orderBy('year')
-->orderBy('week');
+                DB::raw('YEAR(date) as year'),
+                DB::raw('WEEK(date, 1) as week'),
+                'stock_type',
+                DB::raw('SUM(net_price) as amount')
+            )
+            ->groupBy(DB::raw('YEAR(date)'), DB::raw('WEEK(date, 1)'), 'stock_type')
+            ->orderBy('year')
+            ->orderBy('week');
 
         // Apply date filters
         if ($request->filled('start_date')) {
@@ -446,16 +442,12 @@ class TransactionReport extends Controller
     {
         $query = Stock::whereIn('stock_type', ['sale', 'purchase'])
             ->select(
-                DB::raw("strftime('%Y', date) as year"),
-DB::raw("strftime('%m', date) AS month"),
+                DB::raw('YEAR(date) as year'),
+                DB::raw('MONTH(date) as month'),
                 'stock_type',
                 DB::raw('SUM(net_price) as amount')
             )
-            ->groupBy(
-              DB::raw("strftime('%Y', date)"),
-                DB::raw("strftime('%m', date)"),
-                'stock_type'
-            )
+            ->groupBy(DB::raw('YEAR(date)'), DB::raw('MONTH(date)'), 'stock_type')
             ->orderBy('year')
             ->orderBy('month');
 
@@ -509,14 +501,11 @@ DB::raw("strftime('%m', date) AS month"),
     {
         $query = Stock::whereIn('stock_type', ['sale', 'purchase'])
             ->select(
-                DB::raw("strftime('%Y', date) as year"),
+                DB::raw('YEAR(date) as year'),
                 'stock_type',
                 DB::raw('SUM(net_price) as amount')
             )
-            ->groupBy(
-                DB::raw("strftime('%Y', date)"),
-                'stock_type'
-            )
+            ->groupBy(DB::raw('YEAR(date)'), 'stock_type')
             ->orderBy('year');
 
         // Apply date filters if exists
@@ -678,7 +667,7 @@ DB::raw("strftime('%m', date) AS month"),
 
         $transactions = $query->get();
 
-        return $transactions->map(function($stock) {
+        return $transactions->map(function ($stock) {
             return $this->formatTransaction($stock);
         });
     }
