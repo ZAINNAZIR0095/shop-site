@@ -63,6 +63,7 @@ class StockController extends Controller
         'items' => 'required|array|min:1',
         'items.*.product_id' => 'required|exists:products,id',
         'items.*.quantity' => 'required|integer|min:1',
+        'items.*.unit_price' => 'nullable|numeric|min:0',
 
         // Sale receive payment
         'receive_payment' => 'nullable|array',
@@ -101,9 +102,9 @@ class StockController extends Controller
 
             $product = Product::findOrFail($item['product_id']);
 
-            $unitPrice = $request->stock_type === 'sale'
-                ? $product->sale_price
-                : $product->purchase_price;
+            $unitPrice = isset($item['unit_price']) && is_numeric($item['unit_price'])
+                ? $item['unit_price']
+                : ($request->stock_type === 'sale' ? $product->sale_price : $product->purchase_price);
 
             $itemTotal = $item['quantity'] * $unitPrice;
             $netPrice += $itemTotal;
@@ -315,6 +316,7 @@ class StockController extends Controller
         'items'         => 'sometimes|array',
         'items.*.product_id' => 'required_with:items|exists:products,id',
         'items.*.quantity'   => 'required_with:items|integer|min:1',
+        'items.*.unit_price' => 'nullable|numeric|min:0',
 
         // Optional: allow updating / removing receive_payment
         'receive_payment' => 'nullable|array',
@@ -403,9 +405,9 @@ class StockController extends Controller
             foreach ($request->items as $item) {
                 $product = Product::findOrFail($item['product_id']);
 
-                $unitPrice = $stock->stock_type === 'sale'
-                    ? $product->sale_price
-                    : $product->purchase_price;
+                $unitPrice = isset($item['unit_price']) && is_numeric($item['unit_price'])
+                    ? $item['unit_price']
+                    : ($stock->stock_type === 'sale' ? $product->sale_price : $product->purchase_price);
 
                 $itemTotal = $item['quantity'] * $unitPrice;
                 $netPrice += $itemTotal;
@@ -420,8 +422,7 @@ class StockController extends Controller
         }
         // If no items sent → keep old net price (or set to 0 if you prefer)
 
-        $stock->net_price = $netPrice;
-        $stock->save();
+        $stock->update(['net_price' => $netPrice]);
 
         // ─── 5. Recreate party + transactions (just like in store) ─────────────────
 

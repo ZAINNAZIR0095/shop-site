@@ -167,11 +167,10 @@
                         <!-- Price and Total -->
                         <div class="row g-2 mb-3">
                             <div class="col-6">
-                                <CFormLabel>Unit Price</CFormLabel>
+                                <CFormLabel>Unit Price (editable)</CFormLabel>
                                 <CInputGroup>
                                     <CInputGroupText>PKR</CInputGroupText>
-                                    <CFormInput :value="selectedProduct ? getProductPrice(selectedProduct) : '0.00'"
-                                        readonly class="bg-light" />
+                                    <CFormInput type="number" v-model.number="editUnitPrice" min="0" step="0.01" @input="updateEditTotal" />
                                 </CInputGroup>
                             </div>
                             <div class="col-6">
@@ -286,7 +285,7 @@
                                             <td class="text-center align-middle">
                                                 <div class="text-muted small">PKR</div>
                                                 <div class="fw-semibold">{{
-                                                    formatCurrency(getUnitPrice(item.product_id)) }}</div>
+                                                    formatCurrency(item.unit_price || getUnitPrice(item.product_id)) }}</div>
                                             </td>
                                             <td class="text-center align-middle">
                                                 <span class="fw-bold text-primary">
@@ -425,6 +424,7 @@ const errors = ref({})
 // VAutocomplete state
 const selectedProduct = ref(null)
 const editQuantity = ref(null)
+const editUnitPrice = ref(0)
 const editTotal = ref(0)
 const isEditingExisting = ref(false)
 const editingIndex = ref(-1)
@@ -497,7 +497,8 @@ const fetchStock = async () => {
                 form.items = stock.value.items.map(item => ({
                     product_id: item.product_id,
                     quantity: item.quantity,
-                    total: item.total_price || (item.quantity * item.unit_price) || 0
+                    unit_price: item.unit_price || getProductPrice(availableProducts.value.find(p => p.id == item.product_id)),
+                    total: item.total_price || (item.quantity * (item.unit_price || getProductPrice(availableProducts.value.find(p => p.id == item.product_id)))) || 0
                 }))
             }
 
@@ -565,6 +566,7 @@ const handleProductSelect = (product) => {
     if (existingIndex > -1) {
         const existingItem = form.items[existingIndex]
         editQuantity.value = existingItem.quantity || 1
+        editUnitPrice.value = existingItem.unit_price || getProductPrice(product)
         isEditingExisting.value = true
         editingIndex.value = existingIndex
 
@@ -572,6 +574,7 @@ const handleProductSelect = (product) => {
         productError.value = 'Product already in list. Updating will replace existing entry.'
     } else {
         editQuantity.value = 1
+        editUnitPrice.value = getProductPrice(product)
         isEditingExisting.value = false
         editingIndex.value = -1
     }
@@ -606,6 +609,7 @@ const validateQuantity = () => {
 const clearSelectedProduct = () => {
     selectedProduct.value = null
     editQuantity.value = 1
+    editUnitPrice.value = 0
     editTotal.value = 0
     isEditingExisting.value = false
     editingIndex.value = -1
@@ -620,7 +624,7 @@ const updateEditTotal = () => {
     }
 
     const qty = Number(editQuantity.value) || 1
-    const price = getProductPrice(selectedProduct.value)
+    const price = Number(editUnitPrice.value) || getProductPrice(selectedProduct.value)
     editTotal.value = Math.round(qty * price * 100) / 100
 }
 
@@ -629,7 +633,7 @@ const updateItemTotal = (productId, index) => {
         const item = form.items[index]
         const product = availableProducts.value.find(p => p.id == productId)
         if (product) {
-            const price = getProductPrice(product)
+            const price = Number(item.unit_price) || getProductPrice(product)
             const total = Math.round(item.quantity * price * 100) / 100
             form.items[index].total = total
         }
@@ -656,12 +660,13 @@ const addOrUpdateProduct = () => {
     }
 
     const qty = Number(editQuantity.value)
-    const price = getProductPrice(selectedProduct.value)
+    const price = Number(editUnitPrice.value) || getProductPrice(selectedProduct.value)
     const total = Math.round(qty * price * 100) / 100
 
     const productItem = {
         product_id: selectedProduct.value.id,
         quantity: qty,
+        unit_price: price,
         total: total
     }
 
@@ -683,6 +688,7 @@ const editExistingProduct = (index) => {
     if (product) {
         selectedProduct.value = product
         editQuantity.value = item.quantity
+        editUnitPrice.value = item.unit_price || getProductPrice(product)
         isEditingExisting.value = true
         editingIndex.value = index
 
@@ -958,7 +964,9 @@ const submitForm = async () => {
         ...form,
         items: form.items.map(item => ({
             product_id: item.product_id,
-            quantity: item.quantity
+            quantity: item.quantity,
+            unit_price: Number(item.unit_price) || 0,
+            total_price: item.total
         }))
     }
 
@@ -1044,6 +1052,32 @@ watch(editQuantity, (newVal) => {
     }
     validateQuantity()
     updateEditTotal()
+}, { immediate: true })
+
+
+// Watch for unit price changes
+watch(editUnitPrice, (newVal) => {
+    // Sanitize input
+    if (newVal === '' || newVal === null || newVal === undefined) {
+        editUnitPrice.value = 0
+    } else {
+        const sanitized = Math.max(0, Number(newVal) || 0)
+        if (sanitized !== Number(newVal)) {
+            editUnitPrice.value = sanitized
+        }
+    }
+    updateEditTotal()
+})
+
+// Watch for selected product changes
+watch(selectedProduct, (newProduct) => {
+    if (newProduct) {
+        // When product changes, set the default price
+        const defaultPrice = getProductPrice(newProduct)
+        editUnitPrice.value = defaultPrice
+        editQuantity.value = 1
+        updateEditTotal()
+    }
 }, { immediate: true })
 
 // Watch for stock type changes

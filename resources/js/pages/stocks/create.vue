@@ -157,6 +157,10 @@
                                     <CIcon name="cil-reload" class="me-1" />
                                     Clear
                                 </CButton>
+                                <CButton color="success" size="sm" @click="openCreateProductModal">
+                                    <CIcon name="cil-plus" class="me-1" />
+                                    Create Product
+                                </CButton>
                             </div>
                         </div>
 
@@ -226,10 +230,10 @@
                             </div>
 
                             <div class="mb-3">
-                                <CFormLabel>Unit Price</CFormLabel>
+                                <CFormLabel>Unit Price (editable)</CFormLabel>
                                 <CInputGroup>
                                     <CInputGroupText>PKR</CInputGroupText>
-                                    <CFormInput :value="getProductPrice(selectedProduct)" readonly class="bg-light" />
+                                    <CFormInput v-model.number="editUnitPrice" type="number" min="0" step="0.01" @input="updateEditTotal" />
                                 </CInputGroup>
                             </div>
 
@@ -315,7 +319,7 @@
                                             <td class="text-center align-middle">
                                                 <span class="text-muted">PKR</span>
                                                 <div class="fw-semibold">{{
-                                                    formatCurrency(getUnitPrice(item.product_id)) }}</div>
+                                                    formatCurrency(item.unit_price || getUnitPrice(item.product_id)) }}</div>
                                             </td>
                                             <td class="text-center align-middle">
                                                 <span class="fw-bold text-primary">
@@ -564,6 +568,79 @@
   </CModalFooter>
 </CModal>
 
+<!-- Create New Product Modal -->
+<CModal :visible="showCreateProductModal" @close="closeCreateProductModal" size="lg">
+  <CModalHeader>
+    <CModalTitle>
+      <CIcon name="cil-plus" class="me-2" />
+      Create New Product
+    </CModalTitle>
+  </CModalHeader>
+  <CModalBody>
+    <div v-if="createProductError" class="alert alert-danger">{{ createProductError }}</div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <CFormLabel>Name <span class="text-danger">*</span></CFormLabel>
+        <CFormInput v-model="createProductForm.name" :invalid="createProductErrors?.name" />
+        <CFormFeedback v-if="createProductErrors?.name" invalid>
+          {{ createProductErrors.name[0] }}
+        </CFormFeedback>
+      </div>
+      <div class="col-md-6">
+        <CFormLabel>Model No <span class="text-danger">*</span></CFormLabel>
+        <CFormInput v-model="createProductForm.model_no" :invalid="createProductErrors?.model_no" />
+        <CFormFeedback v-if="createProductErrors?.model_no" invalid>
+          {{ createProductErrors.model_no[0] }}
+        </CFormFeedback>
+      </div>
+      <div class="col-md-6">
+        <CFormLabel>Type</CFormLabel>
+        <CFormSelect v-model="createProductForm.type" :invalid="createProductErrors?.type">
+          <option value="physical">Physical</option>
+          <option value="digital">Digital</option>
+          <option value="service">Service</option>
+        </CFormSelect>
+        <CFormFeedback v-if="createProductErrors?.type" invalid>
+          {{ createProductErrors.type[0] }}
+        </CFormFeedback>
+      </div>
+      <div class="col-md-6">
+        <CFormLabel>Unit</CFormLabel>
+        <CFormInput v-model="createProductForm.unit" :invalid="createProductErrors?.unit" />
+      </div>
+      <div class="col-md-6">
+        <CFormLabel>Purchase Price <span class="text-danger">*</span></CFormLabel>
+        <CFormInput type="number" step="0.01" v-model.number="createProductForm.purchase_price" :invalid="createProductErrors?.purchase_price" />
+        <CFormFeedback v-if="createProductErrors?.purchase_price" invalid>
+          {{ createProductErrors.purchase_price[0] }}
+        </CFormFeedback>
+      </div>
+      <div class="col-md-6">
+        <CFormLabel>Sale Price <span class="text-danger">*</span></CFormLabel>
+        <CFormInput type="number" step="0.01" v-model.number="createProductForm.sale_price" :invalid="createProductErrors?.sale_price" />
+        <CFormFeedback v-if="createProductErrors?.sale_price" invalid>
+          {{ createProductErrors.sale_price[0] }}
+        </CFormFeedback>
+      </div>
+      <div class="col-md-6">
+        <CFormLabel>Minimum Stock Limit</CFormLabel>
+        <CFormInput type="number" step="1" min="0" v-model.number="createProductForm.min_limit" />
+      </div>
+      <div class="col-md-6">
+        <CFormLabel>Size</CFormLabel>
+        <CFormInput v-model="createProductForm.size" />
+      </div>
+    </div>
+  </CModalBody>
+  <CModalFooter>
+    <CButton color="secondary" @click="closeCreateProductModal">Cancel</CButton>
+    <CButton color="primary" @click="saveNewProduct" :disabled="creatingProduct">
+      <CSpinner v-if="creatingProduct" component="span" size="sm" class="me-2" />
+      Create Product
+    </CButton>
+  </CModalFooter>
+</CModal>
+
         <!-- Success Modal -->
         <CModal :visible="showSuccessModal" @close="handleModalClose">
             <CModalHeader class="border-0">
@@ -635,6 +712,7 @@ const searchQuery = ref('')
 const searchResults = ref([])
 const selectedProduct = ref(null)
 const editQuantity = ref(1)
+const editUnitPrice = ref(0)
 const editTotal = ref(0)
 const isEditingExisting = ref(false)
 const editingIndex = ref(-1)
@@ -672,6 +750,21 @@ const createPartyForm = reactive({
 const createPartyErrors = ref({})
 const createPartyError = ref('')
 const creatingParty = ref(false)
+
+const showCreateProductModal = ref(false)
+const createProductForm = reactive({
+  name: '',
+  model_no: '',
+  type: 'physical',
+  unit: 'piece',
+  size: '',
+  min_limit: 0,
+  purchase_price: 0,
+  sale_price: 0
+})
+const createProductErrors = ref({})
+const createProductError = ref('')
+const creatingProduct = ref(false)
 
 // Receive Payment
 const receivePayment = reactive({
@@ -871,6 +964,75 @@ const saveNewParty = async () => {
   }
 }
 
+const openCreateProductModal = () => {
+  Object.assign(createProductForm, {
+    name: '',
+    model_no: '',
+    type: 'physical',
+    unit: 'piece',
+    size: '',
+    min_limit: 0,
+    purchase_price: 0,
+    sale_price: 0
+  })
+  createProductErrors.value = {}
+  createProductError.value = ''
+  showCreateProductModal.value = true
+}
+
+const closeCreateProductModal = () => {
+  showCreateProductModal.value = false
+}
+
+const saveNewProduct = async () => {
+  creatingProduct.value = true
+  createProductErrors.value = {}
+  createProductError.value = ''
+
+  try {
+    const response = await axios.post('/products', createProductForm)
+
+    if (response.data.success) {
+      const newProduct = response.data.data
+      await fetchProducts()
+      selectedProduct.value = newProduct
+      editQuantity.value = 1
+      editUnitPrice.value = Number(newProduct.sale_price || newProduct.purchase_price || 0)
+      updateEditTotal()
+
+      Swal.fire({
+        title: 'Success!',
+        text: 'Product created successfully and selected.',
+        icon: 'success',
+        timer: 1800,
+        showConfirmButton: false
+      })
+
+      closeCreateProductModal()
+    }
+  } catch (error) {
+    if (error.response?.status === 422) {
+      createProductErrors.value = error.response.data.errors || {}
+      Swal.fire({
+        title: 'Validation Error',
+        html: Object.values(createProductErrors.value)
+          .flat()
+          .join('<br>'),
+        icon: 'error'
+      })
+    } else {
+      createProductError.value = error.response?.data?.message || 'Failed to create product'
+      Swal.fire({
+        title: 'Error',
+        text: createProductError.value,
+        icon: 'error'
+      })
+    }
+  } finally {
+    creatingProduct.value = false
+  }
+}
+
 const handlePartyChange = (partyName) => {
     form.party_name = partyName
 
@@ -956,6 +1118,7 @@ const selectProductForEdit = (product) => {
         // Product already in list → force EDIT mode
         const existingItem = form.items[existingIndex]
         editQuantity.value = existingItem.quantity || 1
+        editUnitPrice.value = existingItem.unit_price || getProductPrice(product)
         isEditingExisting.value = true
         editingIndex.value = existingIndex
 
@@ -964,6 +1127,7 @@ const selectProductForEdit = (product) => {
     } else {
         // New product
         editQuantity.value = 1
+        editUnitPrice.value = getProductPrice(product)
         isEditingExisting.value = false
         editingIndex.value = -1
     }
@@ -981,29 +1145,81 @@ const selectProductForEdit = (product) => {
 
 const clearSelectedProduct = () => {
     selectedProduct.value = null
+    editQuantity.value = 1
+    editUnitPrice.value = 0
+    editTotal.value = 0
     isEditingExisting.value = false
     editingIndex.value = -1
 }
-
 const updateEditTotal = () => {
     if (!selectedProduct.value) {
         editTotal.value = 0
         return
     }
 
-    const qty = Number(editQuantity.value) || 1  // Default to 1 if invalid
-    const price = getProductPrice(selectedProduct.value)
+    // Get quantity, ensure it's a valid number
+    const qty = Number(editQuantity.value)
+    if (isNaN(qty) || qty < 0) {
+        editQuantity.value = 0
+        editTotal.value = 0
+        return
+    }
 
-    editTotal.value = Math.round(qty * price * 100) / 100  // Avoid floating point issues
+    // Get unit price
+    let price = Number(editUnitPrice.value)
+    if (isNaN(price) || price < 0) {
+        // If editUnitPrice is invalid, try to get the product's default price
+        price = getProductPrice(selectedProduct.value)
+        // Update the editUnitPrice with the default price
+        if (price > 0) {
+            editUnitPrice.value = price
+        } else {
+            price = 0
+        }
+    }
+
+    // Calculate total with proper decimal handling
+    const total = qty * price
+    editTotal.value = Math.round(total * 100) / 100
 }
 // Watch and sanitize immediately
+// Watch for quantity changes
 watch(editQuantity, (newVal) => {
-    let sanitized = Number(newVal) || 0
-    if (sanitized < 1) sanitized = 0  // Prevent 0 or negative
-    if (newVal !== sanitized) {
-        editQuantity.value = sanitized
+    // Sanitize input - remove any non-numeric characters
+    if (newVal === '' || newVal === null || newVal === undefined) {
+        editQuantity.value = 0
+    } else {
+        const sanitized = Math.max(0, Number(newVal) || 0)
+        if (sanitized !== Number(newVal)) {
+            editQuantity.value = sanitized
+        }
     }
     updateEditTotal()
+})
+
+// Watch for unit price changes
+watch(editUnitPrice, (newVal) => {
+    // Sanitize input
+    if (newVal === '' || newVal === null || newVal === undefined) {
+        editUnitPrice.value = 0
+    } else {
+        const sanitized = Math.max(0, Number(newVal) || 0)
+        if (sanitized !== Number(newVal)) {
+            editUnitPrice.value = sanitized
+        }
+    }
+    updateEditTotal()
+})
+
+// Watch for selected product changes
+watch(selectedProduct, (newProduct) => {
+    if (newProduct) {
+        // When product changes, set the default price
+        const defaultPrice = getProductPrice(newProduct)
+        editUnitPrice.value = defaultPrice
+        editQuantity.value = 1
+        updateEditTotal()
+    }
 }, { immediate: true })
 
 const getProductPrice = (product) => {
@@ -1029,12 +1245,13 @@ const addOrUpdateProduct = () => {
         return
     }
 
-    const price = getProductPrice(selectedProduct.value)
+    const price = Number(editUnitPrice.value) || getProductPrice(selectedProduct.value)
     const total = Math.round(qty * price * 100) / 100
 
     const productItem = {
         product_id: selectedProduct.value.id,
         quantity: qty,
+        unit_price: price,
         total: total
     }
 
@@ -1191,7 +1408,7 @@ const submitForm = async () => {
     items: form.items.map(item => ({
       product_id: item.product_id,
       quantity: item.quantity,
-      unit_price: getUnitPrice(item.product_id),
+      unit_price: Number(item.unit_price) || 0,
       total_price: item.total
     }))
   }
